@@ -156,9 +156,8 @@ func addDepCmd() {
 	fs := flag.NewFlagSet("add-dep", flag.ExitOnError)
 	owner := fs.String("owner", "", "Repository owner")
 	repo := fs.String("repo", "", "Repository name")
-	issue := fs.Int64("issue", 0, "Issue ID (the one being blocked)")
-	blocks := fs.Int64("blocks", 0, "Issue ID that blocks this issue")
-	relatesTo := fs.Int64("relates-to", 0, "Issue ID that relates to this issue")
+	issue := fs.Int64("issue", 0, "Issue index (the one being blocked)")
+	blocks := fs.Int64("blocks", 0, "Issue index that blocks this issue")
 	fs.Parse(os.Args[1:])
 
 	if *owner == "" || *repo == "" || *issue == 0 {
@@ -167,19 +166,14 @@ func addDepCmd() {
 		os.Exit(1)
 	}
 
-	depType := "blocks"
 	dependsOn := *blocks
-	if *relatesTo > 0 {
-		depType = "relates_to"
-		dependsOn = *relatesTo
-	}
 	if dependsOn == 0 {
-		fmt.Fprintln(os.Stderr, "Error: --blocks or --relates-to required")
+		fmt.Fprintln(os.Stderr, "Error: --blocks required")
 		os.Exit(1)
 	}
 
 	url := fmt.Sprintf("%s/api/v1/repos/%s/%s/issues/%d/dependencies", giteaURL, *owner, *repo, *issue)
-	body := fmt.Sprintf(`{"depends_on": %d, "dep_type": "%s"}`, dependsOn, depType)
+	body := fmt.Sprintf(`{"index": %d}`, dependsOn)
 
 	req, _ := http.NewRequest("POST", url, strings.NewReader(body))
 	req.Header.Set("Authorization", "token "+giteaToken)
