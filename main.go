@@ -172,8 +172,9 @@ func addDepCmd() {
 		os.Exit(1)
 	}
 
+	// Gitea dependency API uses IssueMeta: index + owner + repo (not internal ID)
 	url := fmt.Sprintf("%s/api/v1/repos/%s/%s/issues/%d/dependencies", giteaURL, *owner, *repo, *issue)
-	body := fmt.Sprintf(`{"index": %d}`, dependsOn)
+	body := fmt.Sprintf(`{"index": %d, "owner": %q, "repo": %q}`, dependsOn, *owner, *repo)
 
 	req, _ := http.NewRequest("POST", url, strings.NewReader(body))
 	req.Header.Set("Authorization", "token "+giteaToken)
@@ -187,7 +188,7 @@ func addDepCmd() {
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusCreated {
-		fmt.Println("✓ Dependency added successfully")
+		fmt.Println("Dependency added successfully")
 	} else {
 		body, _ := io.ReadAll(resp.Body)
 		fmt.Fprintf(os.Stderr, "Error: %s\n%s\n", resp.Status, string(body))
@@ -797,18 +798,17 @@ func handleAddDepTool(args json.RawMessage, id *json.RawMessage) any {
 		}
 	}
 
-	// Call API directly using safe version that doesn't call os.Exit
-	depType := "blocks"
-	dependsOn := int64(0)
+	// Determine the dependency issue index
+	dependsOnIndex := int64(0)
 	if argsStruct.Blocks != nil {
-		dependsOn = *argsStruct.Blocks
+		dependsOnIndex = *argsStruct.Blocks
 	} else if argsStruct.RelatesTo != nil {
-		depType = "relates_to"
-		dependsOn = *argsStruct.RelatesTo
+		dependsOnIndex = *argsStruct.RelatesTo
 	}
 
+	// Gitea dependency API uses IssueMeta: index + owner + repo
 	url := fmt.Sprintf("%s/api/v1/repos/%s/%s/issues/%d/dependencies", giteaURL, *argsStruct.Owner, *argsStruct.Repo, *argsStruct.Issue)
-	body := fmt.Sprintf(`{"depends_on": %d, "dep_type": "%s"}`, dependsOn, depType)
+	body := fmt.Sprintf(`{"index": %d, "owner": %q, "repo": %q}`, dependsOnIndex, *argsStruct.Owner, *argsStruct.Repo)
 
 	output, err := apiPostSafe(url, body)
 	if err != nil {
