@@ -550,6 +550,13 @@ func resolveLabels(owner, repo string, names []string) ([]int64, error) {
 }
 
 func readBody(bodyFlag, bodyFileFlag string) (string, error) {
+	if bodyFileFlag == "-" {
+		data, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			return "", fmt.Errorf("reading stdin: %w", err)
+		}
+		return strings.TrimRight(string(data), "\n"), nil
+	}
 	if bodyFileFlag != "" {
 		data, err := os.ReadFile(bodyFileFlag)
 		if err != nil {
