@@ -402,6 +402,125 @@ func handleToolsList(req MCPRequest) any {
 						"required": []string{"owner", "repo", "index"},
 					},
 				},
+				{
+					"name":        "view_issue",
+					"description": "View a single issue with full details",
+					"inputSchema": map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"owner": map[string]any{
+								"type":        "string",
+								"description": "Repository owner",
+							},
+							"repo": map[string]any{
+								"type":        "string",
+								"description": "Repository name",
+							},
+							"index": map[string]any{
+								"type":        "integer",
+								"description": "Issue number",
+							},
+						},
+						"required": []string{"owner", "repo", "index"},
+					},
+				},
+				{
+					"name":        "view_pull",
+					"description": "View a single pull request with full details",
+					"inputSchema": map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"owner": map[string]any{
+								"type":        "string",
+								"description": "Repository owner",
+							},
+							"repo": map[string]any{
+								"type":        "string",
+								"description": "Repository name",
+							},
+							"index": map[string]any{
+								"type":        "integer",
+								"description": "PR number",
+							},
+						},
+						"required": []string{"owner", "repo", "index"},
+					},
+				},
+				{
+					"name":        "create_label",
+					"description": "Create a repository label",
+					"inputSchema": map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"owner": map[string]any{
+								"type":        "string",
+								"description": "Repository owner",
+							},
+							"repo": map[string]any{
+								"type":        "string",
+								"description": "Repository name",
+							},
+							"name": map[string]any{
+								"type":        "string",
+								"description": "Label name",
+							},
+							"colour": map[string]any{
+								"type":        "string",
+								"description": "Label colour (hex, e.g. #FF0000)",
+							},
+							"description": map[string]any{
+								"type":        "string",
+								"description": "Label description",
+							},
+						},
+						"required": []string{"owner", "repo", "name", "colour"},
+					},
+				},
+				{
+					"name":        "create_repo",
+					"description": "Create a repository",
+					"inputSchema": map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"name": map[string]any{
+								"type":        "string",
+								"description": "Repository name",
+							},
+							"org": map[string]any{
+								"type":        "string",
+								"description": "Organisation (omit for personal repo)",
+							},
+							"description": map[string]any{
+								"type":        "string",
+								"description": "Repository description",
+							},
+							"private": map[string]any{
+								"type":        "boolean",
+								"description": "Create as private repository",
+								"default":     false,
+							},
+							"auto_init": map[string]any{
+								"type":        "boolean",
+								"description": "Initialise with README",
+								"default":     false,
+							},
+							"gitignore": map[string]any{
+								"type":        "string",
+								"description": "Gitignore template (e.g. Go)",
+							},
+							"license": map[string]any{
+								"type":        "string",
+								"description": "License template (e.g. MIT)",
+							},
+							"default_branch": map[string]any{
+								"type":        "string",
+								"description": "Default branch name",
+								"default":     "main",
+							},
+						},
+						"required": []string{"name"},
+					},
+				},
 			},
 		},
 	}
@@ -440,6 +559,14 @@ func handleToolsCall(req MCPRequest) any {
 		return handleCreatePullTool(params.Arguments, req.ID)
 	case "merge_pull":
 		return handleMergePullTool(params.Arguments, req.ID)
+	case "view_issue":
+		return handleViewIssueTool(params.Arguments, req.ID)
+	case "view_pull":
+		return handleViewPullTool(params.Arguments, req.ID)
+	case "create_label":
+		return handleCreateLabelTool(params.Arguments, req.ID)
+	case "create_repo":
+		return handleCreateRepoTool(params.Arguments, req.ID)
 	default:
 		return MCPErrorResponse{
 			JSONRPC: "2.0",
@@ -983,6 +1110,182 @@ func handleMergePullTool(args json.RawMessage, id *json.RawMessage) any {
 			ID:      id,
 			Error:   &MCPError{Code: -32603, Message: err.Error()},
 		}
+	}
+
+	return MCPResponse{JSONRPC: "2.0", ID: id, Result: output}
+}
+
+func handleViewIssueTool(args json.RawMessage, id *json.RawMessage) any {
+	var argsStruct struct {
+		Owner *string `json:"owner,omitempty"`
+		Repo  *string `json:"repo,omitempty"`
+		Index *int64  `json:"index,omitempty"`
+	}
+	if err := json.Unmarshal(args, &argsStruct); err != nil {
+		return MCPErrorResponse{
+			JSONRPC: "2.0",
+			ID:      id,
+			Error:   &MCPError{Code: -32602, Message: "Invalid arguments for view_issue: " + err.Error()},
+		}
+	}
+
+	if argsStruct.Owner == nil || *argsStruct.Owner == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: owner"}}
+	}
+	if argsStruct.Repo == nil || *argsStruct.Repo == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: repo"}}
+	}
+	if argsStruct.Index == nil || *argsStruct.Index == 0 {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: index"}}
+	}
+
+	url := fmt.Sprintf("%s/api/v1/repos/%s/%s/issues/%d", giteaURL, *argsStruct.Owner, *argsStruct.Repo, *argsStruct.Index)
+	data, err := apiGetSafe(url)
+	if err != nil {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32603, Message: err.Error()}}
+	}
+
+	return MCPResponse{JSONRPC: "2.0", ID: id, Result: data}
+}
+
+func handleViewPullTool(args json.RawMessage, id *json.RawMessage) any {
+	var argsStruct struct {
+		Owner *string `json:"owner,omitempty"`
+		Repo  *string `json:"repo,omitempty"`
+		Index *int64  `json:"index,omitempty"`
+	}
+	if err := json.Unmarshal(args, &argsStruct); err != nil {
+		return MCPErrorResponse{
+			JSONRPC: "2.0",
+			ID:      id,
+			Error:   &MCPError{Code: -32602, Message: "Invalid arguments for view_pull: " + err.Error()},
+		}
+	}
+
+	if argsStruct.Owner == nil || *argsStruct.Owner == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: owner"}}
+	}
+	if argsStruct.Repo == nil || *argsStruct.Repo == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: repo"}}
+	}
+	if argsStruct.Index == nil || *argsStruct.Index == 0 {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: index"}}
+	}
+
+	url := fmt.Sprintf("%s/api/v1/repos/%s/%s/pulls/%d", giteaURL, *argsStruct.Owner, *argsStruct.Repo, *argsStruct.Index)
+	data, err := apiGetSafe(url)
+	if err != nil {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32603, Message: err.Error()}}
+	}
+
+	return MCPResponse{JSONRPC: "2.0", ID: id, Result: data}
+}
+
+func handleCreateLabelTool(args json.RawMessage, id *json.RawMessage) any {
+	var argsStruct struct {
+		Owner       *string `json:"owner,omitempty"`
+		Repo        *string `json:"repo,omitempty"`
+		Name        *string `json:"name,omitempty"`
+		Colour      *string `json:"colour,omitempty"`
+		Description *string `json:"description,omitempty"`
+	}
+	if err := json.Unmarshal(args, &argsStruct); err != nil {
+		return MCPErrorResponse{
+			JSONRPC: "2.0",
+			ID:      id,
+			Error:   &MCPError{Code: -32602, Message: "Invalid arguments for create_label: " + err.Error()},
+		}
+	}
+
+	if argsStruct.Owner == nil || *argsStruct.Owner == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: owner"}}
+	}
+	if argsStruct.Repo == nil || *argsStruct.Repo == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: repo"}}
+	}
+	if argsStruct.Name == nil || *argsStruct.Name == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: name"}}
+	}
+	if argsStruct.Colour == nil || *argsStruct.Colour == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: colour"}}
+	}
+
+	c := *argsStruct.Colour
+	if len(c) > 0 && c[0] != '#' {
+		c = "#" + c
+	}
+
+	payload := map[string]any{
+		"name":  *argsStruct.Name,
+		"color": c,
+	}
+	if argsStruct.Description != nil && *argsStruct.Description != "" {
+		payload["description"] = *argsStruct.Description
+	}
+
+	jsonBody, _ := json.Marshal(payload)
+	url := fmt.Sprintf("%s/api/v1/repos/%s/%s/labels", giteaURL, *argsStruct.Owner, *argsStruct.Repo)
+	output, err := apiPostSafe(url, string(jsonBody))
+	if err != nil {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32603, Message: err.Error()}}
+	}
+
+	return MCPResponse{JSONRPC: "2.0", ID: id, Result: output}
+}
+
+func handleCreateRepoTool(args json.RawMessage, id *json.RawMessage) any {
+	var argsStruct struct {
+		Name          *string `json:"name,omitempty"`
+		Org           *string `json:"org,omitempty"`
+		Description   *string `json:"description,omitempty"`
+		Private       *bool   `json:"private,omitempty"`
+		AutoInit      *bool   `json:"auto_init,omitempty"`
+		Gitignore     *string `json:"gitignore,omitempty"`
+		License       *string `json:"license,omitempty"`
+		DefaultBranch *string `json:"default_branch,omitempty"`
+	}
+	if err := json.Unmarshal(args, &argsStruct); err != nil {
+		return MCPErrorResponse{
+			JSONRPC: "2.0",
+			ID:      id,
+			Error:   &MCPError{Code: -32602, Message: "Invalid arguments for create_repo: " + err.Error()},
+		}
+	}
+
+	if argsStruct.Name == nil || *argsStruct.Name == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: name"}}
+	}
+
+	payload := map[string]any{
+		"name":           *argsStruct.Name,
+		"private":        argsStruct.Private != nil && *argsStruct.Private,
+		"auto_init":      argsStruct.AutoInit != nil && *argsStruct.AutoInit,
+		"default_branch": "main",
+	}
+	if argsStruct.DefaultBranch != nil && *argsStruct.DefaultBranch != "" {
+		payload["default_branch"] = *argsStruct.DefaultBranch
+	}
+	if argsStruct.Description != nil && *argsStruct.Description != "" {
+		payload["description"] = *argsStruct.Description
+	}
+	if argsStruct.Gitignore != nil && *argsStruct.Gitignore != "" {
+		payload["gitignores"] = *argsStruct.Gitignore
+	}
+	if argsStruct.License != nil && *argsStruct.License != "" {
+		payload["license"] = *argsStruct.License
+	}
+
+	var url string
+	if argsStruct.Org != nil && *argsStruct.Org != "" {
+		url = fmt.Sprintf("%s/api/v1/orgs/%s/repos", giteaURL, *argsStruct.Org)
+	} else {
+		url = fmt.Sprintf("%s/api/v1/user/repos", giteaURL)
+	}
+
+	jsonBody, _ := json.Marshal(payload)
+	output, err := apiPostSafe(url, string(jsonBody))
+	if err != nil {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32603, Message: err.Error()}}
 	}
 
 	return MCPResponse{JSONRPC: "2.0", ID: id, Result: output}

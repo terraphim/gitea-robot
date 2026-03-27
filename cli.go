@@ -542,3 +542,147 @@ func mergePullCmd() {
 
 	fmt.Printf("PR #%d merged (%s)\n", *index, *style)
 }
+
+func viewIssueCmd() {
+	fs := flag.NewFlagSet("view-issue", flag.ExitOnError)
+	owner := fs.String("owner", "", "Repository owner")
+	repo := fs.String("repo", "", "Repository name")
+	index := fs.Int64("index", 0, "Issue number")
+	fs.Parse(os.Args[1:])
+
+	if *owner == "" || *repo == "" || *index == 0 {
+		fmt.Fprintln(os.Stderr, "Error: --owner, --repo, and --index required")
+		fs.Usage()
+		os.Exit(1)
+	}
+
+	u := fmt.Sprintf("%s/api/v1/repos/%s/%s/issues/%d", giteaURL, *owner, *repo, *index)
+	data := apiGet(u)
+	fmt.Println(data)
+}
+
+func viewPullCmd() {
+	fs := flag.NewFlagSet("view-pull", flag.ExitOnError)
+	owner := fs.String("owner", "", "Repository owner")
+	repo := fs.String("repo", "", "Repository name")
+	index := fs.Int64("index", 0, "PR number")
+	fs.Parse(os.Args[1:])
+
+	if *owner == "" || *repo == "" || *index == 0 {
+		fmt.Fprintln(os.Stderr, "Error: --owner, --repo, and --index required")
+		fs.Usage()
+		os.Exit(1)
+	}
+
+	u := fmt.Sprintf("%s/api/v1/repos/%s/%s/pulls/%d", giteaURL, *owner, *repo, *index)
+	data := apiGet(u)
+	fmt.Println(data)
+}
+
+func createLabelCmd() {
+	fs := flag.NewFlagSet("create-label", flag.ExitOnError)
+	owner := fs.String("owner", "", "Repository owner")
+	repo := fs.String("repo", "", "Repository name")
+	name := fs.String("name", "", "Label name")
+	colour := fs.String("colour", "", "Label colour (hex, e.g. #FF0000)")
+	description := fs.String("description", "", "Label description")
+	fs.Parse(os.Args[1:])
+
+	if *owner == "" || *repo == "" || *name == "" || *colour == "" {
+		fmt.Fprintln(os.Stderr, "Error: --owner, --repo, --name, and --colour required")
+		fs.Usage()
+		os.Exit(1)
+	}
+
+	// Normalise colour: ensure # prefix
+	c := *colour
+	if len(c) > 0 && c[0] != '#' {
+		c = "#" + c
+	}
+
+	payload := map[string]any{
+		"name":  *name,
+		"color": c,
+	}
+	if *description != "" {
+		payload["description"] = *description
+	}
+
+	jsonBody, _ := json.Marshal(payload)
+	u := fmt.Sprintf("%s/api/v1/repos/%s/%s/labels", giteaURL, *owner, *repo)
+	result, err := apiPostSafe(u, string(jsonBody))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	var label map[string]any
+	if err := json.Unmarshal([]byte(result), &label); err == nil {
+		if id, ok := label["id"].(float64); ok {
+			fmt.Printf("Created label %.0f: %s (%s)\n", id, *name, c)
+			return
+		}
+	}
+	fmt.Println(result)
+}
+
+func createRepoCmd() {
+	fs := flag.NewFlagSet("create-repo", flag.ExitOnError)
+	name := fs.String("name", "", "Repository name")
+	org := fs.String("org", "", "Organisation (omit for personal repo)")
+	description := fs.String("description", "", "Repository description")
+	private := fs.Bool("private", false, "Create as private repository")
+	autoInit := fs.Bool("auto-init", false, "Initialise with README")
+	gitignore := fs.String("gitignore", "", "Gitignore template (e.g. Go)")
+	license := fs.String("license", "", "License template (e.g. MIT)")
+	defaultBranch := fs.String("default-branch", "main", "Default branch name")
+	fs.Parse(os.Args[1:])
+
+	if *name == "" {
+		fmt.Fprintln(os.Stderr, "Error: --name required")
+		fs.Usage()
+		os.Exit(1)
+	}
+
+	payload := map[string]any{
+		"name":           *name,
+		"private":        *private,
+		"auto_init":      *autoInit,
+		"default_branch": *defaultBranch,
+	}
+	if *description != "" {
+		payload["description"] = *description
+	}
+	if *gitignore != "" {
+		payload["gitignores"] = *gitignore
+	}
+	if *license != "" {
+		payload["license"] = *license
+	}
+
+	var u string
+	if *org != "" {
+		u = fmt.Sprintf("%s/api/v1/orgs/%s/repos", giteaURL, *org)
+	} else {
+		u = fmt.Sprintf("%s/api/v1/user/repos", giteaURL)
+	}
+
+	jsonBody, _ := json.Marshal(payload)
+	result, err := apiPostSafe(u, string(jsonBody))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	var repo map[string]any
+	if err := json.Unmarshal([]byte(result), &repo); err == nil {
+		if fullName, ok := repo["full_name"].(string); ok {
+			fmt.Printf("Created repository: %s\n", fullName)
+			if htmlURL, ok := repo["html_url"].(string); ok {
+				fmt.Println(htmlURL)
+			}
+			return
+		}
+	}
+	fmt.Println(result)
+}

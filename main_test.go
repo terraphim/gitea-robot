@@ -209,21 +209,25 @@ func TestHandleToolsList(t *testing.T) {
 		t.Fatalf("Expected tools to be []map[string]interface{}, got %T", result["tools"])
 	}
 
-	// Verify we have 8 tools
-	if len(tools) != 8 {
-		t.Errorf("Expected 8 tools, got %d", len(tools))
+	// Verify we have 12 tools
+	if len(tools) != 12 {
+		t.Errorf("Expected 12 tools, got %d", len(tools))
 	}
 
 	// Verify tool names
 	expectedTools := map[string]bool{
-		"triage":      false,
-		"ready":       false,
-		"graph":       false,
-		"add_dep":     false,
-		"list_labels": false,
-		"list_pulls":  false,
-		"create_pull": false,
-		"merge_pull":  false,
+		"triage":       false,
+		"ready":        false,
+		"graph":        false,
+		"add_dep":      false,
+		"list_labels":  false,
+		"list_pulls":   false,
+		"create_pull":  false,
+		"merge_pull":   false,
+		"view_issue":   false,
+		"view_pull":    false,
+		"create_label": false,
+		"create_repo":  false,
 	}
 
 	for _, tool := range tools {
@@ -855,6 +859,208 @@ func TestHandleMergePullToolValidation(t *testing.T) {
 	}
 }
 
+// TestHandleViewIssueToolValidation tests view_issue tool parameter validation
+func TestHandleViewIssueToolValidation(t *testing.T) {
+	tests := []struct {
+		name        string
+		args        string
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name:        "Missing owner",
+			args:        `{"repo":"gitea","index":1}`,
+			wantErr:     true,
+			errContains: "owner",
+		},
+		{
+			name:        "Missing repo",
+			args:        `{"owner":"terraphim","index":1}`,
+			wantErr:     true,
+			errContains: "repo",
+		},
+		{
+			name:        "Missing index",
+			args:        `{"owner":"terraphim","repo":"gitea"}`,
+			wantErr:     true,
+			errContains: "index",
+		},
+		{
+			name:        "Zero index",
+			args:        `{"owner":"terraphim","repo":"gitea","index":0}`,
+			wantErr:     true,
+			errContains: "index",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			id := jsonRawMessagePtr(`1`)
+			resp := handleViewIssueTool(json.RawMessage(tt.args), id)
+
+			if tt.wantErr {
+				errResp, ok := resp.(MCPErrorResponse)
+				if !ok {
+					t.Fatalf("Expected MCPErrorResponse, got %T", resp)
+				}
+				if errResp.Error == nil {
+					t.Fatalf("Expected error but got nil")
+				}
+				if tt.errContains != "" && !strings.Contains(errResp.Error.Message, tt.errContains) {
+					t.Errorf("Expected error message to contain '%s', got '%s'", tt.errContains, errResp.Error.Message)
+				}
+			}
+		})
+	}
+}
+
+// TestHandleViewPullToolValidation tests view_pull tool parameter validation
+func TestHandleViewPullToolValidation(t *testing.T) {
+	tests := []struct {
+		name        string
+		args        string
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name:        "Missing owner",
+			args:        `{"repo":"gitea","index":1}`,
+			wantErr:     true,
+			errContains: "owner",
+		},
+		{
+			name:        "Missing repo",
+			args:        `{"owner":"terraphim","index":1}`,
+			wantErr:     true,
+			errContains: "repo",
+		},
+		{
+			name:        "Missing index",
+			args:        `{"owner":"terraphim","repo":"gitea"}`,
+			wantErr:     true,
+			errContains: "index",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			id := jsonRawMessagePtr(`1`)
+			resp := handleViewPullTool(json.RawMessage(tt.args), id)
+
+			if tt.wantErr {
+				errResp, ok := resp.(MCPErrorResponse)
+				if !ok {
+					t.Fatalf("Expected MCPErrorResponse, got %T", resp)
+				}
+				if errResp.Error == nil {
+					t.Fatalf("Expected error but got nil")
+				}
+				if tt.errContains != "" && !strings.Contains(errResp.Error.Message, tt.errContains) {
+					t.Errorf("Expected error message to contain '%s', got '%s'", tt.errContains, errResp.Error.Message)
+				}
+			}
+		})
+	}
+}
+
+// TestHandleCreateLabelToolValidation tests create_label tool parameter validation
+func TestHandleCreateLabelToolValidation(t *testing.T) {
+	tests := []struct {
+		name        string
+		args        string
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name:        "Missing owner",
+			args:        `{"repo":"gitea","name":"bug","colour":"#FF0000"}`,
+			wantErr:     true,
+			errContains: "owner",
+		},
+		{
+			name:        "Missing repo",
+			args:        `{"owner":"terraphim","name":"bug","colour":"#FF0000"}`,
+			wantErr:     true,
+			errContains: "repo",
+		},
+		{
+			name:        "Missing name",
+			args:        `{"owner":"terraphim","repo":"gitea","colour":"#FF0000"}`,
+			wantErr:     true,
+			errContains: "name",
+		},
+		{
+			name:        "Missing colour",
+			args:        `{"owner":"terraphim","repo":"gitea","name":"bug"}`,
+			wantErr:     true,
+			errContains: "colour",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			id := jsonRawMessagePtr(`1`)
+			resp := handleCreateLabelTool(json.RawMessage(tt.args), id)
+
+			if tt.wantErr {
+				errResp, ok := resp.(MCPErrorResponse)
+				if !ok {
+					t.Fatalf("Expected MCPErrorResponse, got %T", resp)
+				}
+				if errResp.Error == nil {
+					t.Fatalf("Expected error but got nil")
+				}
+				if tt.errContains != "" && !strings.Contains(errResp.Error.Message, tt.errContains) {
+					t.Errorf("Expected error message to contain '%s', got '%s'", tt.errContains, errResp.Error.Message)
+				}
+			}
+		})
+	}
+}
+
+// TestHandleCreateRepoToolValidation tests create_repo tool parameter validation
+func TestHandleCreateRepoToolValidation(t *testing.T) {
+	tests := []struct {
+		name        string
+		args        string
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name:        "Missing name",
+			args:        `{"org":"terraphim"}`,
+			wantErr:     true,
+			errContains: "name",
+		},
+		{
+			name:        "Empty name",
+			args:        `{"name":""}`,
+			wantErr:     true,
+			errContains: "name",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			id := jsonRawMessagePtr(`1`)
+			resp := handleCreateRepoTool(json.RawMessage(tt.args), id)
+
+			if tt.wantErr {
+				errResp, ok := resp.(MCPErrorResponse)
+				if !ok {
+					t.Fatalf("Expected MCPErrorResponse, got %T", resp)
+				}
+				if errResp.Error == nil {
+					t.Fatalf("Expected error but got nil")
+				}
+				if tt.errContains != "" && !strings.Contains(errResp.Error.Message, tt.errContains) {
+					t.Errorf("Expected error message to contain '%s', got '%s'", tt.errContains, errResp.Error.Message)
+				}
+			}
+		})
+	}
+}
+
 // TestMCPServerIntegration tests the MCP server command integration
 func TestMCPServerIntegration(t *testing.T) {
 	// This test simulates MCP server communication via stdin/stdout
@@ -876,7 +1082,7 @@ func TestMCPServerIntegration(t *testing.T) {
 		{
 			name:     "Tools list request",
 			input:    `{"jsonrpc":"2.0","id":3,"method":"tools/list","params":{}}` + "\n",
-			contains: []string{`"jsonrpc":"2.0"`, `"id":3`, `"triage"`, `"ready"`, `"graph"`, `"add_dep"`, `"list_labels"`, `"list_pulls"`, `"create_pull"`, `"merge_pull"`},
+			contains: []string{`"jsonrpc":"2.0"`, `"id":3`, `"triage"`, `"ready"`, `"graph"`, `"add_dep"`, `"list_labels"`, `"list_pulls"`, `"create_pull"`, `"merge_pull"`, `"view_issue"`, `"view_pull"`, `"create_label"`, `"create_repo"`},
 		},
 		{
 			name:     "Invalid JSON",
@@ -906,7 +1112,7 @@ func TestMCPServerIntegration(t *testing.T) {
 			var output strings.Builder
 			done := make(chan bool)
 			go func() {
-				buf := make([]byte, 4096)
+				buf := make([]byte, 16384)
 				n, _ := stdoutReader.Read(buf)
 				if n > 0 {
 					output.Write(buf[:n])

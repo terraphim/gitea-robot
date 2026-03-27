@@ -60,6 +60,14 @@ func main() {
 		createPullCmd()
 	case "merge-pull":
 		mergePullCmd()
+	case "view-issue":
+		viewIssueCmd()
+	case "view-pull":
+		viewPullCmd()
+	case "create-label":
+		createLabelCmd()
+	case "create-repo":
+		createRepoCmd()
 	case "mcp-server":
 		mcpServerCmd()
 	default:
@@ -89,6 +97,10 @@ Commands:
   list-pulls    List pull requests
   create-pull   Create a pull request
   merge-pull    Merge a pull request
+  view-issue    View a single issue with full details
+  view-pull     View a single pull request with full details
+  create-label  Create a repository label
+  create-repo   Create a repository
   mcp-server    Start MCP server exposing gitea-robot functionality
 
 Environment:
