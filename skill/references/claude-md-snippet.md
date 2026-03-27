@@ -33,7 +33,7 @@ gitea-robot ready --owner OWNER --repo REPO
 # View dependency graph
 gitea-robot graph --owner OWNER --repo REPO
 
-# Add dependency: issue X blocks issue Y
+# Add dependency: issue X is blocked by issue Y (Y blocks X)
 gitea-robot add-dep --owner OWNER --repo REPO --issue X --blocks Y
 ```
 
