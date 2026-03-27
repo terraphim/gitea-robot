@@ -209,25 +209,33 @@ func TestHandleToolsList(t *testing.T) {
 		t.Fatalf("Expected tools to be []map[string]interface{}, got %T", result["tools"])
 	}
 
-	// Verify we have 12 tools
-	if len(tools) != 12 {
-		t.Errorf("Expected 12 tools, got %d", len(tools))
+	// Verify we have 20 tools
+	if len(tools) != 20 {
+		t.Errorf("Expected 20 tools, got %d", len(tools))
 	}
 
 	// Verify tool names
 	expectedTools := map[string]bool{
-		"triage":       false,
-		"ready":        false,
-		"graph":        false,
-		"add_dep":      false,
-		"list_labels":  false,
-		"list_pulls":   false,
-		"create_pull":  false,
-		"merge_pull":   false,
-		"view_issue":   false,
-		"view_pull":    false,
-		"create_label": false,
-		"create_repo":  false,
+		"triage":         false,
+		"ready":          false,
+		"graph":          false,
+		"add_dep":        false,
+		"list_labels":    false,
+		"list_pulls":     false,
+		"create_pull":    false,
+		"merge_pull":     false,
+		"view_issue":     false,
+		"view_pull":      false,
+		"create_label":   false,
+		"create_repo":    false,
+		"create_release": false,
+		"list_repos":     false,
+		"fork_repo":      false,
+		"list_issues":    false,
+		"create_issue":   false,
+		"comment":        false,
+		"close_issue":    false,
+		"edit_issue":     false,
 	}
 
 	for _, tool := range tools {
@@ -1061,6 +1069,219 @@ func TestHandleCreateRepoToolValidation(t *testing.T) {
 	}
 }
 
+func TestHandleCreateReleaseToolValidation(t *testing.T) {
+	tests := []struct {
+		name        string
+		args        string
+		wantErr     bool
+		errContains string
+	}{
+		{name: "Missing owner", args: `{"repo":"test","tag":"v1.0.0"}`, wantErr: true, errContains: "owner"},
+		{name: "Missing repo", args: `{"owner":"terraphim","tag":"v1.0.0"}`, wantErr: true, errContains: "repo"},
+		{name: "Missing tag", args: `{"owner":"terraphim","repo":"test"}`, wantErr: true, errContains: "tag"},
+		{name: "Empty owner", args: `{"owner":"","repo":"test","tag":"v1.0.0"}`, wantErr: true, errContains: "owner"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			id := jsonRawMessagePtr(`1`)
+			resp := handleCreateReleaseTool(json.RawMessage(tt.args), id)
+			if tt.wantErr {
+				errResp, ok := resp.(MCPErrorResponse)
+				if !ok {
+					t.Fatalf("Expected MCPErrorResponse, got %T", resp)
+				}
+				if errResp.Error == nil || !strings.Contains(errResp.Error.Message, tt.errContains) {
+					t.Errorf("Expected error containing '%s', got '%v'", tt.errContains, errResp.Error)
+				}
+			}
+		})
+	}
+}
+
+func TestHandleListReposToolValidation(t *testing.T) {
+	// list_repos has no required args -- all optional (org, limit, query)
+	// With empty args it should NOT return a -32602 validation error
+	id := jsonRawMessagePtr(`1`)
+	resp := handleListReposTool(json.RawMessage(`{}`), id)
+	if errResp, ok := resp.(MCPErrorResponse); ok {
+		if errResp.Error != nil && errResp.Error.Code == -32602 {
+			t.Errorf("list_repos should not return validation error for empty args, got: %s", errResp.Error.Message)
+		}
+	}
+	// Any other result (success or connection error) is acceptable
+}
+
+func TestHandleForkRepoToolValidation(t *testing.T) {
+	tests := []struct {
+		name        string
+		args        string
+		wantErr     bool
+		errContains string
+	}{
+		{name: "Missing owner", args: `{"repo":"test"}`, wantErr: true, errContains: "owner"},
+		{name: "Missing repo", args: `{"owner":"terraphim"}`, wantErr: true, errContains: "repo"},
+		{name: "Empty owner", args: `{"owner":"","repo":"test"}`, wantErr: true, errContains: "owner"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			id := jsonRawMessagePtr(`1`)
+			resp := handleForkRepoTool(json.RawMessage(tt.args), id)
+			if tt.wantErr {
+				errResp, ok := resp.(MCPErrorResponse)
+				if !ok {
+					t.Fatalf("Expected MCPErrorResponse, got %T", resp)
+				}
+				if errResp.Error == nil || !strings.Contains(errResp.Error.Message, tt.errContains) {
+					t.Errorf("Expected error containing '%s', got '%v'", tt.errContains, errResp.Error)
+				}
+			}
+		})
+	}
+}
+
+func TestHandleListIssuesToolValidation(t *testing.T) {
+	tests := []struct {
+		name        string
+		args        string
+		wantErr     bool
+		errContains string
+	}{
+		{name: "Missing owner", args: `{"repo":"test"}`, wantErr: true, errContains: "owner"},
+		{name: "Missing repo", args: `{"owner":"terraphim"}`, wantErr: true, errContains: "repo"},
+		{name: "Empty owner", args: `{"owner":"","repo":"test"}`, wantErr: true, errContains: "owner"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			id := jsonRawMessagePtr(`1`)
+			resp := handleListIssuesTool(json.RawMessage(tt.args), id)
+			if tt.wantErr {
+				errResp, ok := resp.(MCPErrorResponse)
+				if !ok {
+					t.Fatalf("Expected MCPErrorResponse, got %T", resp)
+				}
+				if errResp.Error == nil || !strings.Contains(errResp.Error.Message, tt.errContains) {
+					t.Errorf("Expected error containing '%s', got '%v'", tt.errContains, errResp.Error)
+				}
+			}
+		})
+	}
+}
+
+func TestHandleCreateIssueToolValidation(t *testing.T) {
+	tests := []struct {
+		name        string
+		args        string
+		wantErr     bool
+		errContains string
+	}{
+		{name: "Missing owner", args: `{"repo":"test","title":"Bug"}`, wantErr: true, errContains: "owner"},
+		{name: "Missing repo", args: `{"owner":"terraphim","title":"Bug"}`, wantErr: true, errContains: "repo"},
+		{name: "Missing title", args: `{"owner":"terraphim","repo":"test"}`, wantErr: true, errContains: "title"},
+		{name: "Empty title", args: `{"owner":"terraphim","repo":"test","title":""}`, wantErr: true, errContains: "title"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			id := jsonRawMessagePtr(`1`)
+			resp := handleCreateIssueTool(json.RawMessage(tt.args), id)
+			if tt.wantErr {
+				errResp, ok := resp.(MCPErrorResponse)
+				if !ok {
+					t.Fatalf("Expected MCPErrorResponse, got %T", resp)
+				}
+				if errResp.Error == nil || !strings.Contains(errResp.Error.Message, tt.errContains) {
+					t.Errorf("Expected error containing '%s', got '%v'", tt.errContains, errResp.Error)
+				}
+			}
+		})
+	}
+}
+
+func TestHandleCommentToolValidation(t *testing.T) {
+	tests := []struct {
+		name        string
+		args        string
+		wantErr     bool
+		errContains string
+	}{
+		{name: "Missing owner", args: `{"repo":"test","issue":1,"body":"hi"}`, wantErr: true, errContains: "owner"},
+		{name: "Missing repo", args: `{"owner":"terraphim","issue":1,"body":"hi"}`, wantErr: true, errContains: "repo"},
+		{name: "Missing issue", args: `{"owner":"terraphim","repo":"test","body":"hi"}`, wantErr: true, errContains: "issue"},
+		{name: "Missing body", args: `{"owner":"terraphim","repo":"test","issue":1}`, wantErr: true, errContains: "body"},
+		{name: "Empty body", args: `{"owner":"terraphim","repo":"test","issue":1,"body":""}`, wantErr: true, errContains: "body"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			id := jsonRawMessagePtr(`1`)
+			resp := handleCommentTool(json.RawMessage(tt.args), id)
+			if tt.wantErr {
+				errResp, ok := resp.(MCPErrorResponse)
+				if !ok {
+					t.Fatalf("Expected MCPErrorResponse, got %T", resp)
+				}
+				if errResp.Error == nil || !strings.Contains(errResp.Error.Message, tt.errContains) {
+					t.Errorf("Expected error containing '%s', got '%v'", tt.errContains, errResp.Error)
+				}
+			}
+		})
+	}
+}
+
+func TestHandleCloseIssueToolValidation(t *testing.T) {
+	tests := []struct {
+		name        string
+		args        string
+		wantErr     bool
+		errContains string
+	}{
+		{name: "Missing owner", args: `{"repo":"test","issue":1}`, wantErr: true, errContains: "owner"},
+		{name: "Missing repo", args: `{"owner":"terraphim","issue":1}`, wantErr: true, errContains: "repo"},
+		{name: "Missing issue", args: `{"owner":"terraphim","repo":"test"}`, wantErr: true, errContains: "issue"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			id := jsonRawMessagePtr(`1`)
+			resp := handleCloseIssueTool(json.RawMessage(tt.args), id)
+			if tt.wantErr {
+				errResp, ok := resp.(MCPErrorResponse)
+				if !ok {
+					t.Fatalf("Expected MCPErrorResponse, got %T", resp)
+				}
+				if errResp.Error == nil || !strings.Contains(errResp.Error.Message, tt.errContains) {
+					t.Errorf("Expected error containing '%s', got '%v'", tt.errContains, errResp.Error)
+				}
+			}
+		})
+	}
+}
+
+func TestHandleEditIssueToolValidation(t *testing.T) {
+	tests := []struct {
+		name        string
+		args        string
+		wantErr     bool
+		errContains string
+	}{
+		{name: "Missing owner", args: `{"repo":"test","issue":1}`, wantErr: true, errContains: "owner"},
+		{name: "Missing repo", args: `{"owner":"terraphim","issue":1}`, wantErr: true, errContains: "repo"},
+		{name: "Missing issue", args: `{"owner":"terraphim","repo":"test"}`, wantErr: true, errContains: "issue"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			id := jsonRawMessagePtr(`1`)
+			resp := handleEditIssueTool(json.RawMessage(tt.args), id)
+			if tt.wantErr {
+				errResp, ok := resp.(MCPErrorResponse)
+				if !ok {
+					t.Fatalf("Expected MCPErrorResponse, got %T", resp)
+				}
+				if errResp.Error == nil || !strings.Contains(errResp.Error.Message, tt.errContains) {
+					t.Errorf("Expected error containing '%s', got '%v'", tt.errContains, errResp.Error)
+				}
+			}
+		})
+	}
+}
+
 // TestMCPServerIntegration tests the MCP server command integration
 func TestMCPServerIntegration(t *testing.T) {
 	// This test simulates MCP server communication via stdin/stdout
@@ -1082,7 +1303,7 @@ func TestMCPServerIntegration(t *testing.T) {
 		{
 			name:     "Tools list request",
 			input:    `{"jsonrpc":"2.0","id":3,"method":"tools/list","params":{}}` + "\n",
-			contains: []string{`"jsonrpc":"2.0"`, `"id":3`, `"triage"`, `"ready"`, `"graph"`, `"add_dep"`, `"list_labels"`, `"list_pulls"`, `"create_pull"`, `"merge_pull"`, `"view_issue"`, `"view_pull"`, `"create_label"`, `"create_repo"`},
+			contains: []string{`"jsonrpc":"2.0"`, `"id":3`, `"triage"`, `"ready"`, `"graph"`, `"add_dep"`, `"list_labels"`, `"list_pulls"`, `"create_pull"`, `"merge_pull"`, `"view_issue"`, `"view_pull"`, `"create_label"`, `"create_repo"`, `"create_release"`, `"list_repos"`, `"fork_repo"`, `"list_issues"`, `"create_issue"`, `"comment"`, `"close_issue"`, `"edit_issue"`},
 		},
 		{
 			name:     "Invalid JSON",

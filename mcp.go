@@ -521,6 +521,246 @@ func handleToolsList(req MCPRequest) any {
 						"required": []string{"name"},
 					},
 				},
+				{
+					"name":        "create_release",
+					"description": "Create a release",
+					"inputSchema": map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"owner": map[string]any{
+								"type":        "string",
+								"description": "Repository owner",
+							},
+							"repo": map[string]any{
+								"type":        "string",
+								"description": "Repository name",
+							},
+							"tag": map[string]any{
+								"type":        "string",
+								"description": "Tag name (e.g. v1.0.0)",
+							},
+							"title": map[string]any{
+								"type":        "string",
+								"description": "Release title",
+							},
+							"body": map[string]any{
+								"type":        "string",
+								"description": "Release body/notes",
+							},
+							"target": map[string]any{
+								"type":        "string",
+								"description": "Target branch",
+							},
+							"draft": map[string]any{
+								"type":        "boolean",
+								"description": "Create as draft release",
+								"default":     false,
+							},
+							"prerelease": map[string]any{
+								"type":        "boolean",
+								"description": "Mark as pre-release",
+								"default":     false,
+							},
+						},
+						"required": []string{"owner", "repo", "tag"},
+					},
+				},
+				{
+					"name":        "list_repos",
+					"description": "List repositories",
+					"inputSchema": map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"org": map[string]any{
+								"type":        "string",
+								"description": "Organisation name (omit to search all)",
+							},
+							"query": map[string]any{
+								"type":        "string",
+								"description": "Search query",
+							},
+							"limit": map[string]any{
+								"type":        "integer",
+								"description": "Maximum number of repos to return",
+								"default":     20,
+							},
+						},
+					},
+				},
+				{
+					"name":        "fork_repo",
+					"description": "Fork a repository",
+					"inputSchema": map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"owner": map[string]any{
+								"type":        "string",
+								"description": "Repository owner",
+							},
+							"repo": map[string]any{
+								"type":        "string",
+								"description": "Repository name",
+							},
+							"org": map[string]any{
+								"type":        "string",
+								"description": "Fork to organisation (omit for personal fork)",
+							},
+							"name": map[string]any{
+								"type":        "string",
+								"description": "Fork name (defaults to original)",
+							},
+						},
+						"required": []string{"owner", "repo"},
+					},
+				},
+				{
+					"name":        "list_issues",
+					"description": "List repository issues",
+					"inputSchema": map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"owner": map[string]any{
+								"type":        "string",
+								"description": "Repository owner",
+							},
+							"repo": map[string]any{
+								"type":        "string",
+								"description": "Repository name",
+							},
+							"state": map[string]any{
+								"type":        "string",
+								"description": "Issue state: open, closed, or all",
+								"default":     "open",
+							},
+							"labels": map[string]any{
+								"type":        "string",
+								"description": "Comma-separated label names to filter by",
+							},
+							"limit": map[string]any{
+								"type":        "integer",
+								"description": "Maximum number of issues to return",
+								"default":     20,
+							},
+						},
+						"required": []string{"owner", "repo"},
+					},
+				},
+				{
+					"name":        "create_issue",
+					"description": "Create a new issue",
+					"inputSchema": map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"owner": map[string]any{
+								"type":        "string",
+								"description": "Repository owner",
+							},
+							"repo": map[string]any{
+								"type":        "string",
+								"description": "Repository name",
+							},
+							"title": map[string]any{
+								"type":        "string",
+								"description": "Issue title",
+							},
+							"body": map[string]any{
+								"type":        "string",
+								"description": "Issue body",
+							},
+							"labels": map[string]any{
+								"type":        "string",
+								"description": "Comma-separated label names",
+							},
+						},
+						"required": []string{"owner", "repo", "title"},
+					},
+				},
+				{
+					"name":        "comment",
+					"description": "Add a comment to an issue",
+					"inputSchema": map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"owner": map[string]any{
+								"type":        "string",
+								"description": "Repository owner",
+							},
+							"repo": map[string]any{
+								"type":        "string",
+								"description": "Repository name",
+							},
+							"issue": map[string]any{
+								"type":        "integer",
+								"description": "Issue number",
+							},
+							"body": map[string]any{
+								"type":        "string",
+								"description": "Comment body",
+							},
+						},
+						"required": []string{"owner", "repo", "issue", "body"},
+					},
+				},
+				{
+					"name":        "close_issue",
+					"description": "Close an issue",
+					"inputSchema": map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"owner": map[string]any{
+								"type":        "string",
+								"description": "Repository owner",
+							},
+							"repo": map[string]any{
+								"type":        "string",
+								"description": "Repository name",
+							},
+							"issue": map[string]any{
+								"type":        "integer",
+								"description": "Issue number",
+							},
+						},
+						"required": []string{"owner", "repo", "issue"},
+					},
+				},
+				{
+					"name":        "edit_issue",
+					"description": "Edit an issue",
+					"inputSchema": map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"owner": map[string]any{
+								"type":        "string",
+								"description": "Repository owner",
+							},
+							"repo": map[string]any{
+								"type":        "string",
+								"description": "Repository name",
+							},
+							"issue": map[string]any{
+								"type":        "integer",
+								"description": "Issue number",
+							},
+							"title": map[string]any{
+								"type":        "string",
+								"description": "New issue title",
+							},
+							"body": map[string]any{
+								"type":        "string",
+								"description": "New issue body",
+							},
+							"state": map[string]any{
+								"type":        "string",
+								"description": "New state: open or closed",
+							},
+							"add_labels": map[string]any{
+								"type":        "string",
+								"description": "Comma-separated label names to add",
+							},
+						},
+						"required": []string{"owner", "repo", "issue"},
+					},
+				},
 			},
 		},
 	}
@@ -567,6 +807,22 @@ func handleToolsCall(req MCPRequest) any {
 		return handleCreateLabelTool(params.Arguments, req.ID)
 	case "create_repo":
 		return handleCreateRepoTool(params.Arguments, req.ID)
+	case "create_release":
+		return handleCreateReleaseTool(params.Arguments, req.ID)
+	case "list_repos":
+		return handleListReposTool(params.Arguments, req.ID)
+	case "fork_repo":
+		return handleForkRepoTool(params.Arguments, req.ID)
+	case "list_issues":
+		return handleListIssuesTool(params.Arguments, req.ID)
+	case "create_issue":
+		return handleCreateIssueTool(params.Arguments, req.ID)
+	case "comment":
+		return handleCommentTool(params.Arguments, req.ID)
+	case "close_issue":
+		return handleCloseIssueTool(params.Arguments, req.ID)
+	case "edit_issue":
+		return handleEditIssueTool(params.Arguments, req.ID)
 	default:
 		return MCPErrorResponse{
 			JSONRPC: "2.0",
@@ -1289,4 +1545,356 @@ func handleCreateRepoTool(args json.RawMessage, id *json.RawMessage) any {
 	}
 
 	return MCPResponse{JSONRPC: "2.0", ID: id, Result: output}
+}
+
+func handleCreateReleaseTool(args json.RawMessage, id *json.RawMessage) any {
+	var argsStruct struct {
+		Owner      *string `json:"owner,omitempty"`
+		Repo       *string `json:"repo,omitempty"`
+		Tag        *string `json:"tag,omitempty"`
+		Title      *string `json:"title,omitempty"`
+		Body       *string `json:"body,omitempty"`
+		Target     *string `json:"target,omitempty"`
+		Draft      *bool   `json:"draft,omitempty"`
+		Prerelease *bool   `json:"prerelease,omitempty"`
+	}
+	if err := json.Unmarshal(args, &argsStruct); err != nil {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Invalid arguments for create_release: " + err.Error()}}
+	}
+
+	if argsStruct.Owner == nil || *argsStruct.Owner == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: owner"}}
+	}
+	if argsStruct.Repo == nil || *argsStruct.Repo == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: repo"}}
+	}
+	if argsStruct.Tag == nil || *argsStruct.Tag == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: tag"}}
+	}
+
+	payload := map[string]any{
+		"tag_name":   *argsStruct.Tag,
+		"draft":      argsStruct.Draft != nil && *argsStruct.Draft,
+		"prerelease": argsStruct.Prerelease != nil && *argsStruct.Prerelease,
+	}
+	if argsStruct.Title != nil && *argsStruct.Title != "" {
+		payload["name"] = *argsStruct.Title
+	} else {
+		payload["name"] = *argsStruct.Tag
+	}
+	if argsStruct.Body != nil && *argsStruct.Body != "" {
+		payload["body"] = *argsStruct.Body
+	}
+	if argsStruct.Target != nil && *argsStruct.Target != "" {
+		payload["target_commitish"] = *argsStruct.Target
+	}
+
+	jsonBody, _ := json.Marshal(payload)
+	url := fmt.Sprintf("%s/api/v1/repos/%s/%s/releases", giteaURL, *argsStruct.Owner, *argsStruct.Repo)
+	output, err := apiPostSafe(url, string(jsonBody))
+	if err != nil {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32603, Message: err.Error()}}
+	}
+
+	return MCPResponse{JSONRPC: "2.0", ID: id, Result: output}
+}
+
+func handleListReposTool(args json.RawMessage, id *json.RawMessage) any {
+	var argsStruct struct {
+		Org   *string `json:"org,omitempty"`
+		Limit *int    `json:"limit,omitempty"`
+		Query *string `json:"query,omitempty"`
+	}
+	if err := json.Unmarshal(args, &argsStruct); err != nil {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Invalid arguments for list_repos: " + err.Error()}}
+	}
+
+	limit := 20
+	if argsStruct.Limit != nil && *argsStruct.Limit > 0 {
+		limit = *argsStruct.Limit
+	}
+
+	var url string
+	if argsStruct.Org != nil && *argsStruct.Org != "" {
+		url = fmt.Sprintf("%s/api/v1/orgs/%s/repos?limit=%d", giteaURL, *argsStruct.Org, limit)
+	} else if argsStruct.Query != nil && *argsStruct.Query != "" {
+		url = fmt.Sprintf("%s/api/v1/repos/search?q=%s&limit=%d", giteaURL, *argsStruct.Query, limit)
+	} else {
+		url = fmt.Sprintf("%s/api/v1/repos/search?limit=%d", giteaURL, limit)
+	}
+
+	data, err := apiGetSafe(url)
+	if err != nil {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32603, Message: err.Error()}}
+	}
+
+	return MCPResponse{JSONRPC: "2.0", ID: id, Result: data}
+}
+
+func handleForkRepoTool(args json.RawMessage, id *json.RawMessage) any {
+	var argsStruct struct {
+		Owner *string `json:"owner,omitempty"`
+		Repo  *string `json:"repo,omitempty"`
+		Org   *string `json:"org,omitempty"`
+		Name  *string `json:"name,omitempty"`
+	}
+	if err := json.Unmarshal(args, &argsStruct); err != nil {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Invalid arguments for fork_repo: " + err.Error()}}
+	}
+
+	if argsStruct.Owner == nil || *argsStruct.Owner == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: owner"}}
+	}
+	if argsStruct.Repo == nil || *argsStruct.Repo == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: repo"}}
+	}
+
+	payload := map[string]any{}
+	if argsStruct.Org != nil && *argsStruct.Org != "" {
+		payload["organization"] = *argsStruct.Org
+	}
+	if argsStruct.Name != nil && *argsStruct.Name != "" {
+		payload["name"] = *argsStruct.Name
+	}
+
+	jsonBody, _ := json.Marshal(payload)
+	url := fmt.Sprintf("%s/api/v1/repos/%s/%s/forks", giteaURL, *argsStruct.Owner, *argsStruct.Repo)
+	output, err := apiPostSafe(url, string(jsonBody))
+	if err != nil {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32603, Message: err.Error()}}
+	}
+
+	return MCPResponse{JSONRPC: "2.0", ID: id, Result: output}
+}
+
+func handleListIssuesTool(args json.RawMessage, id *json.RawMessage) any {
+	var argsStruct struct {
+		Owner  *string `json:"owner,omitempty"`
+		Repo   *string `json:"repo,omitempty"`
+		State  *string `json:"state,omitempty"`
+		Labels *string `json:"labels,omitempty"`
+		Limit  *int    `json:"limit,omitempty"`
+	}
+	if err := json.Unmarshal(args, &argsStruct); err != nil {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Invalid arguments for list_issues: " + err.Error()}}
+	}
+
+	if argsStruct.Owner == nil || *argsStruct.Owner == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: owner"}}
+	}
+	if argsStruct.Repo == nil || *argsStruct.Repo == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: repo"}}
+	}
+
+	state := "open"
+	if argsStruct.State != nil && *argsStruct.State != "" {
+		state = *argsStruct.State
+	}
+	limit := 20
+	if argsStruct.Limit != nil && *argsStruct.Limit > 0 {
+		limit = *argsStruct.Limit
+	}
+
+	url := fmt.Sprintf("%s/api/v1/repos/%s/%s/issues?state=%s&limit=%d&type=issues",
+		giteaURL, *argsStruct.Owner, *argsStruct.Repo, state, limit)
+	if argsStruct.Labels != nil && *argsStruct.Labels != "" {
+		url += "&labels=" + *argsStruct.Labels
+	}
+
+	data, err := apiGetSafe(url)
+	if err != nil {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32603, Message: err.Error()}}
+	}
+
+	return MCPResponse{JSONRPC: "2.0", ID: id, Result: data}
+}
+
+func handleCreateIssueTool(args json.RawMessage, id *json.RawMessage) any {
+	var argsStruct struct {
+		Owner  *string `json:"owner,omitempty"`
+		Repo   *string `json:"repo,omitempty"`
+		Title  *string `json:"title,omitempty"`
+		Body   *string `json:"body,omitempty"`
+		Labels *string `json:"labels,omitempty"`
+	}
+	if err := json.Unmarshal(args, &argsStruct); err != nil {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Invalid arguments for create_issue: " + err.Error()}}
+	}
+
+	if argsStruct.Owner == nil || *argsStruct.Owner == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: owner"}}
+	}
+	if argsStruct.Repo == nil || *argsStruct.Repo == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: repo"}}
+	}
+	if argsStruct.Title == nil || *argsStruct.Title == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: title"}}
+	}
+
+	payload := map[string]any{
+		"title": *argsStruct.Title,
+	}
+	if argsStruct.Body != nil {
+		payload["body"] = *argsStruct.Body
+	}
+
+	if argsStruct.Labels != nil && *argsStruct.Labels != "" {
+		names := strings.Split(*argsStruct.Labels, ",")
+		for i := range names {
+			names[i] = strings.TrimSpace(names[i])
+		}
+		labelIDs, err := resolveLabels(*argsStruct.Owner, *argsStruct.Repo, names)
+		if err == nil && len(labelIDs) > 0 {
+			payload["labels"] = labelIDs
+		}
+	}
+
+	jsonBody, _ := json.Marshal(payload)
+	url := fmt.Sprintf("%s/api/v1/repos/%s/%s/issues", giteaURL, *argsStruct.Owner, *argsStruct.Repo)
+	output, err := apiPostSafe(url, string(jsonBody))
+	if err != nil {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32603, Message: err.Error()}}
+	}
+
+	return MCPResponse{JSONRPC: "2.0", ID: id, Result: output}
+}
+
+func handleCommentTool(args json.RawMessage, id *json.RawMessage) any {
+	var argsStruct struct {
+		Owner *string `json:"owner,omitempty"`
+		Repo  *string `json:"repo,omitempty"`
+		Issue *int64  `json:"issue,omitempty"`
+		Body  *string `json:"body,omitempty"`
+	}
+	if err := json.Unmarshal(args, &argsStruct); err != nil {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Invalid arguments for comment: " + err.Error()}}
+	}
+
+	if argsStruct.Owner == nil || *argsStruct.Owner == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: owner"}}
+	}
+	if argsStruct.Repo == nil || *argsStruct.Repo == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: repo"}}
+	}
+	if argsStruct.Issue == nil || *argsStruct.Issue == 0 {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: issue"}}
+	}
+	if argsStruct.Body == nil || *argsStruct.Body == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: body"}}
+	}
+
+	jsonBody, _ := json.Marshal(map[string]string{"body": *argsStruct.Body})
+	url := fmt.Sprintf("%s/api/v1/repos/%s/%s/issues/%d/comments",
+		giteaURL, *argsStruct.Owner, *argsStruct.Repo, *argsStruct.Issue)
+	output, err := apiPostSafe(url, string(jsonBody))
+	if err != nil {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32603, Message: err.Error()}}
+	}
+
+	return MCPResponse{JSONRPC: "2.0", ID: id, Result: output}
+}
+
+func handleCloseIssueTool(args json.RawMessage, id *json.RawMessage) any {
+	var argsStruct struct {
+		Owner *string `json:"owner,omitempty"`
+		Repo  *string `json:"repo,omitempty"`
+		Issue *int64  `json:"issue,omitempty"`
+	}
+	if err := json.Unmarshal(args, &argsStruct); err != nil {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Invalid arguments for close_issue: " + err.Error()}}
+	}
+
+	if argsStruct.Owner == nil || *argsStruct.Owner == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: owner"}}
+	}
+	if argsStruct.Repo == nil || *argsStruct.Repo == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: repo"}}
+	}
+	if argsStruct.Issue == nil || *argsStruct.Issue == 0 {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: issue"}}
+	}
+
+	jsonBody, _ := json.Marshal(map[string]string{"state": "closed"})
+	url := fmt.Sprintf("%s/api/v1/repos/%s/%s/issues/%d",
+		giteaURL, *argsStruct.Owner, *argsStruct.Repo, *argsStruct.Issue)
+	output, err := apiPatchSafe(url, string(jsonBody))
+	if err != nil {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32603, Message: err.Error()}}
+	}
+
+	return MCPResponse{JSONRPC: "2.0", ID: id, Result: output}
+}
+
+func handleEditIssueTool(args json.RawMessage, id *json.RawMessage) any {
+	var argsStruct struct {
+		Owner     *string `json:"owner,omitempty"`
+		Repo      *string `json:"repo,omitempty"`
+		Issue     *int64  `json:"issue,omitempty"`
+		Title     *string `json:"title,omitempty"`
+		Body      *string `json:"body,omitempty"`
+		State     *string `json:"state,omitempty"`
+		AddLabels *string `json:"add_labels,omitempty"`
+	}
+	if err := json.Unmarshal(args, &argsStruct); err != nil {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Invalid arguments for edit_issue: " + err.Error()}}
+	}
+
+	if argsStruct.Owner == nil || *argsStruct.Owner == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: owner"}}
+	}
+	if argsStruct.Repo == nil || *argsStruct.Repo == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: repo"}}
+	}
+	if argsStruct.Issue == nil || *argsStruct.Issue == 0 {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: issue"}}
+	}
+
+	payload := map[string]any{}
+	if argsStruct.Title != nil && *argsStruct.Title != "" {
+		payload["title"] = *argsStruct.Title
+	}
+	if argsStruct.Body != nil {
+		payload["body"] = *argsStruct.Body
+	}
+	if argsStruct.State != nil && *argsStruct.State != "" {
+		payload["state"] = *argsStruct.State
+	}
+
+	var result string
+	if len(payload) > 0 {
+		jsonBody, _ := json.Marshal(payload)
+		url := fmt.Sprintf("%s/api/v1/repos/%s/%s/issues/%d",
+			giteaURL, *argsStruct.Owner, *argsStruct.Repo, *argsStruct.Issue)
+		output, err := apiPatchSafe(url, string(jsonBody))
+		if err != nil {
+			return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32603, Message: err.Error()}}
+		}
+		result = output
+	}
+
+	if argsStruct.AddLabels != nil && *argsStruct.AddLabels != "" {
+		names := strings.Split(*argsStruct.AddLabels, ",")
+		for i := range names {
+			names[i] = strings.TrimSpace(names[i])
+		}
+		labelIDs, err := resolveLabels(*argsStruct.Owner, *argsStruct.Repo, names)
+		if err == nil && len(labelIDs) > 0 {
+			jsonBody, _ := json.Marshal(map[string]any{"labels": labelIDs})
+			url := fmt.Sprintf("%s/api/v1/repos/%s/%s/issues/%d/labels",
+				giteaURL, *argsStruct.Owner, *argsStruct.Repo, *argsStruct.Issue)
+			labelResult, err := apiPostSafe(url, string(jsonBody))
+			if err != nil {
+				return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32603, Message: err.Error()}}
+			}
+			if result == "" {
+				result = labelResult
+			}
+		}
+	}
+
+	if result == "" {
+		result = fmt.Sprintf(`{"message":"no changes applied to issue #%d"}`, *argsStruct.Issue)
+	}
+
+	return MCPResponse{JSONRPC: "2.0", ID: id, Result: result}
 }

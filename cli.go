@@ -686,3 +686,128 @@ func createRepoCmd() {
 	}
 	fmt.Println(result)
 }
+
+func createReleaseCmd() {
+	fs := flag.NewFlagSet("create-release", flag.ExitOnError)
+	owner := fs.String("owner", "", "Repository owner")
+	repo := fs.String("repo", "", "Repository name")
+	tag := fs.String("tag", "", "Tag name (e.g. v1.0.0)")
+	title := fs.String("title", "", "Release title")
+	body := fs.String("body", "", "Release body")
+	bodyFile := fs.String("body-file", "", "Read release body from file")
+	target := fs.String("target", "", "Target branch (default: repo default branch)")
+	draft := fs.Bool("draft", false, "Create as draft release")
+	prerelease := fs.Bool("prerelease", false, "Mark as pre-release")
+	fs.Parse(os.Args[1:])
+
+	if *owner == "" || *repo == "" || *tag == "" {
+		fmt.Fprintln(os.Stderr, "Error: --owner, --repo, and --tag required")
+		fs.Usage()
+		os.Exit(1)
+	}
+
+	releaseBody, err := readBody(*body, *bodyFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading body: %v\n", err)
+		os.Exit(1)
+	}
+
+	payload := map[string]any{
+		"tag_name":   *tag,
+		"draft":      *draft,
+		"prerelease": *prerelease,
+	}
+	if *title != "" {
+		payload["name"] = *title
+	} else {
+		payload["name"] = *tag
+	}
+	if releaseBody != "" {
+		payload["body"] = releaseBody
+	}
+	if *target != "" {
+		payload["target_commitish"] = *target
+	}
+
+	jsonBody, _ := json.Marshal(payload)
+	u := fmt.Sprintf("%s/api/v1/repos/%s/%s/releases", giteaURL, *owner, *repo)
+	result, err := apiPostSafe(u, string(jsonBody))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	var release map[string]any
+	if err := json.Unmarshal([]byte(result), &release); err == nil {
+		if tagName, ok := release["tag_name"].(string); ok {
+			fmt.Printf("Created release: %s\n", tagName)
+			if htmlURL, ok := release["html_url"].(string); ok {
+				fmt.Println(htmlURL)
+			}
+			return
+		}
+	}
+	fmt.Println(result)
+}
+
+func listReposCmd() {
+	fs := flag.NewFlagSet("list-repos", flag.ExitOnError)
+	org := fs.String("org", "", "Organisation name")
+	limit := fs.Int("limit", 20, "Maximum number of repos to return")
+	query := fs.String("query", "", "Search query")
+	fs.Parse(os.Args[1:])
+
+	var u string
+	if *org != "" {
+		u = fmt.Sprintf("%s/api/v1/orgs/%s/repos?limit=%d", giteaURL, *org, *limit)
+	} else if *query != "" {
+		u = fmt.Sprintf("%s/api/v1/repos/search?q=%s&limit=%d", giteaURL, *query, *limit)
+	} else {
+		u = fmt.Sprintf("%s/api/v1/repos/search?limit=%d", giteaURL, *limit)
+	}
+	data := apiGet(u)
+	fmt.Println(data)
+}
+
+func forkRepoCmd() {
+	fs := flag.NewFlagSet("fork-repo", flag.ExitOnError)
+	owner := fs.String("owner", "", "Repository owner")
+	repo := fs.String("repo", "", "Repository name")
+	org := fs.String("org", "", "Fork to organisation (omit for personal fork)")
+	name := fs.String("name", "", "Fork name (defaults to original)")
+	fs.Parse(os.Args[1:])
+
+	if *owner == "" || *repo == "" {
+		fmt.Fprintln(os.Stderr, "Error: --owner and --repo required")
+		fs.Usage()
+		os.Exit(1)
+	}
+
+	payload := map[string]any{}
+	if *org != "" {
+		payload["organization"] = *org
+	}
+	if *name != "" {
+		payload["name"] = *name
+	}
+
+	jsonBody, _ := json.Marshal(payload)
+	u := fmt.Sprintf("%s/api/v1/repos/%s/%s/forks", giteaURL, *owner, *repo)
+	result, err := apiPostSafe(u, string(jsonBody))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	var forked map[string]any
+	if err := json.Unmarshal([]byte(result), &forked); err == nil {
+		if fullName, ok := forked["full_name"].(string); ok {
+			fmt.Printf("Forked to: %s\n", fullName)
+			if htmlURL, ok := forked["html_url"].(string); ok {
+				fmt.Println(htmlURL)
+			}
+			return
+		}
+	}
+	fmt.Println(result)
+}

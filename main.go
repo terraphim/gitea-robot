@@ -68,6 +68,12 @@ func main() {
 		createLabelCmd()
 	case "create-repo":
 		createRepoCmd()
+	case "create-release":
+		createReleaseCmd()
+	case "list-repos":
+		listReposCmd()
+	case "fork-repo":
+		forkRepoCmd()
 	case "mcp-server":
 		mcpServerCmd()
 	default:
@@ -100,8 +106,11 @@ Commands:
   view-issue    View a single issue with full details
   view-pull     View a single pull request with full details
   create-label  Create a repository label
-  create-repo   Create a repository
-  mcp-server    Start MCP server exposing gitea-robot functionality
+  create-repo     Create a repository
+  create-release  Create a release
+  list-repos      List repositories
+  fork-repo       Fork a repository
+  mcp-server      Start MCP server exposing gitea-robot functionality
 
 Environment:
   GITEA_URL    Gitea instance URL (default: http://localhost:3000)
