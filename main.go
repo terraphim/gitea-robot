@@ -52,6 +52,16 @@ func main() {
 		graphCmd()
 	case "add-dep":
 		addDepCmd()
+	case "list-issues":
+		listIssuesCmd()
+	case "create-issue":
+		createIssueCmd()
+	case "comment":
+		commentCmd()
+	case "close-issue":
+		closeIssueCmd()
+	case "edit-issue":
+		editIssueCmd()
 	case "mcp-server":
 		mcpServerCmd()
 	default:
@@ -72,7 +82,12 @@ Commands:
   ready       Get unblocked (ready) tasks
   graph       Get dependency graph
   add-dep     Add dependency between issues
-  mcp-server  Start MCP server exposing gitea-robot functionality
+  list-issues   List repository issues (filtered by state, labels)
+  create-issue  Create a new issue
+  comment       Add a comment to an issue
+  close-issue   Close an issue
+  edit-issue    Edit an issue (title, state, labels)
+  mcp-server    Start MCP server exposing gitea-robot functionality
 
 Environment:
   GITEA_URL    Gitea instance URL (default: http://localhost:3000)
@@ -87,6 +102,18 @@ Examples:
 
   # Add dependency: issue 2 blocked by issue 1
   gitea-robot add-dep --owner terraphim --repo gitea --issue 2 --blocks 1
+
+  # List open issues
+  gitea-robot list-issues --owner terraphim --repo terraphim-ai
+
+  # Create an issue with labels
+  gitea-robot create-issue --owner terraphim --repo terraphim-ai --title "Fix bug" --labels "priority/P1-high"
+
+  # Comment on an issue (body from file)
+  gitea-robot comment --owner terraphim --repo terraphim-ai --issue 42 --body-file report.md
+
+  # Close an issue
+  gitea-robot close-issue --owner terraphim --repo terraphim-ai --issue 42
 
   # Start MCP server
   gitea-robot mcp-server`)
@@ -196,6 +223,219 @@ func addDepCmd() {
 	}
 }
 
+func listIssuesCmd() {
+	fs := flag.NewFlagSet("list-issues", flag.ExitOnError)
+	owner := fs.String("owner", "", "Repository owner")
+	repo := fs.String("repo", "", "Repository name")
+	state := fs.String("state", "open", "Issue state: open, closed, or all")
+	labels := fs.String("labels", "", "Comma-separated label names to filter by")
+	limit := fs.Int("limit", 20, "Maximum number of issues to return")
+	fs.Parse(os.Args[1:])
+
+	if *owner == "" || *repo == "" {
+		fmt.Fprintln(os.Stderr, "Error: --owner and --repo required")
+		fs.Usage()
+		os.Exit(1)
+	}
+
+	u := fmt.Sprintf("%s/api/v1/repos/%s/%s/issues?state=%s&limit=%d&type=issues",
+		giteaURL, *owner, *repo, *state, *limit)
+	if *labels != "" {
+		u += "&labels=" + *labels
+	}
+	data := apiGet(u)
+	fmt.Println(data)
+}
+
+func createIssueCmd() {
+	fs := flag.NewFlagSet("create-issue", flag.ExitOnError)
+	owner := fs.String("owner", "", "Repository owner")
+	repo := fs.String("repo", "", "Repository name")
+	title := fs.String("title", "", "Issue title")
+	body := fs.String("body", "", "Issue body")
+	bodyFile := fs.String("body-file", "", "Read issue body from file")
+	labels := fs.String("labels", "", "Comma-separated label names")
+	fs.Parse(os.Args[1:])
+
+	if *owner == "" || *repo == "" || *title == "" {
+		fmt.Fprintln(os.Stderr, "Error: --owner, --repo, and --title required")
+		fs.Usage()
+		os.Exit(1)
+	}
+
+	issueBody, err := readBody(*body, *bodyFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading body: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Resolve label names to IDs if provided
+	var labelIDs []int64
+	if *labels != "" {
+		names := strings.Split(*labels, ",")
+		for i := range names {
+			names[i] = strings.TrimSpace(names[i])
+		}
+		labelIDs, err = resolveLabels(*owner, *repo, names)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: could not resolve labels: %v\n", err)
+		}
+	}
+
+	payload := map[string]any{
+		"title": *title,
+		"body":  issueBody,
+	}
+	if len(labelIDs) > 0 {
+		payload["labels"] = labelIDs
+	}
+
+	jsonBody, _ := json.Marshal(payload)
+	u := fmt.Sprintf("%s/api/v1/repos/%s/%s/issues", giteaURL, *owner, *repo)
+	result, err := apiPostSafe(u, string(jsonBody))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	var issue map[string]any
+	if err := json.Unmarshal([]byte(result), &issue); err == nil {
+		if num, ok := issue["number"].(float64); ok {
+			fmt.Printf("Created issue #%.0f: %s\n", num, *title)
+			return
+		}
+	}
+	fmt.Println(result)
+}
+
+func commentCmd() {
+	fs := flag.NewFlagSet("comment", flag.ExitOnError)
+	owner := fs.String("owner", "", "Repository owner")
+	repo := fs.String("repo", "", "Repository name")
+	issue := fs.Int64("issue", 0, "Issue number")
+	body := fs.String("body", "", "Comment body")
+	bodyFile := fs.String("body-file", "", "Read comment body from file")
+	fs.Parse(os.Args[1:])
+
+	if *owner == "" || *repo == "" || *issue == 0 {
+		fmt.Fprintln(os.Stderr, "Error: --owner, --repo, and --issue required")
+		fs.Usage()
+		os.Exit(1)
+	}
+
+	commentBody, err := readBody(*body, *bodyFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading body: %v\n", err)
+		os.Exit(1)
+	}
+	if commentBody == "" {
+		fmt.Fprintln(os.Stderr, "Error: --body or --body-file required")
+		os.Exit(1)
+	}
+
+	payload, _ := json.Marshal(map[string]string{"body": commentBody})
+	u := fmt.Sprintf("%s/api/v1/repos/%s/%s/issues/%d/comments", giteaURL, *owner, *repo, *issue)
+	_, err = apiPostSafe(u, string(payload))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("Comment added to issue #%d\n", *issue)
+}
+
+func closeIssueCmd() {
+	fs := flag.NewFlagSet("close-issue", flag.ExitOnError)
+	owner := fs.String("owner", "", "Repository owner")
+	repo := fs.String("repo", "", "Repository name")
+	issue := fs.Int64("issue", 0, "Issue number")
+	fs.Parse(os.Args[1:])
+
+	if *owner == "" || *repo == "" || *issue == 0 {
+		fmt.Fprintln(os.Stderr, "Error: --owner, --repo, and --issue required")
+		fs.Usage()
+		os.Exit(1)
+	}
+
+	payload, _ := json.Marshal(map[string]string{"state": "closed"})
+	u := fmt.Sprintf("%s/api/v1/repos/%s/%s/issues/%d", giteaURL, *owner, *repo, *issue)
+	_, err := apiPatchSafe(u, string(payload))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("Issue #%d closed\n", *issue)
+}
+
+func editIssueCmd() {
+	fs := flag.NewFlagSet("edit-issue", flag.ExitOnError)
+	owner := fs.String("owner", "", "Repository owner")
+	repo := fs.String("repo", "", "Repository name")
+	issue := fs.Int64("issue", 0, "Issue number")
+	title := fs.String("title", "", "New issue title")
+	body := fs.String("body", "", "New issue body")
+	bodyFile := fs.String("body-file", "", "Read issue body from file")
+	state := fs.String("state", "", "New state: open or closed")
+	addLabels := fs.String("add-labels", "", "Comma-separated label names to add")
+	fs.Parse(os.Args[1:])
+
+	if *owner == "" || *repo == "" || *issue == 0 {
+		fmt.Fprintln(os.Stderr, "Error: --owner, --repo, and --issue required")
+		fs.Usage()
+		os.Exit(1)
+	}
+
+	payload := map[string]any{}
+	if *title != "" {
+		payload["title"] = *title
+	}
+	if *state != "" {
+		payload["state"] = *state
+	}
+	issueBody, err := readBody(*body, *bodyFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading body: %v\n", err)
+		os.Exit(1)
+	}
+	if issueBody != "" {
+		payload["body"] = issueBody
+	}
+
+	if len(payload) > 0 {
+		jsonBody, _ := json.Marshal(payload)
+		u := fmt.Sprintf("%s/api/v1/repos/%s/%s/issues/%d", giteaURL, *owner, *repo, *issue)
+		_, err := apiPatchSafe(u, string(jsonBody))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error updating issue: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("Issue #%d updated\n", *issue)
+	}
+
+	if *addLabels != "" {
+		names := strings.Split(*addLabels, ",")
+		for i := range names {
+			names[i] = strings.TrimSpace(names[i])
+		}
+		labelIDs, err := resolveLabels(*owner, *repo, names)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error resolving labels: %v\n", err)
+			os.Exit(1)
+		}
+		if len(labelIDs) > 0 {
+			jsonBody, _ := json.Marshal(map[string]any{"labels": labelIDs})
+			u := fmt.Sprintf("%s/api/v1/repos/%s/%s/issues/%d/labels", giteaURL, *owner, *repo, *issue)
+			_, err := apiPostSafe(u, string(jsonBody))
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error adding labels: %v\n", err)
+				os.Exit(1)
+			}
+			fmt.Printf("Labels added to issue #%d\n", *issue)
+		}
+	}
+}
+
 func apiGet(url string) string {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -224,6 +464,100 @@ func apiGet(url string) string {
 	}
 
 	return string(body)
+}
+
+func apiGetSafe(url string) (string, error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return "", fmt.Errorf("error creating request: %v", err)
+	}
+
+	req.Header.Set("Authorization", "token "+giteaToken)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("error making request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("error reading response: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("error: %s\n%s", resp.Status, string(body))
+	}
+
+	return string(body), nil
+}
+
+func apiPatchSafe(url, body string) (string, error) {
+	req, err := http.NewRequest("PATCH", url, strings.NewReader(body))
+	if err != nil {
+		return "", fmt.Errorf("error creating request: %v", err)
+	}
+
+	req.Header.Set("Authorization", "token "+giteaToken)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("error making request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("error reading response: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return "", fmt.Errorf("error: %s\n%s", resp.Status, string(respBody))
+	}
+
+	return string(respBody), nil
+}
+
+func resolveLabels(owner, repo string, names []string) ([]int64, error) {
+	url := fmt.Sprintf("%s/api/v1/repos/%s/%s/labels?limit=50", giteaURL, owner, repo)
+	data, err := apiGetSafe(url)
+	if err != nil {
+		return nil, err
+	}
+
+	var labels []map[string]any
+	if err := json.Unmarshal([]byte(data), &labels); err != nil {
+		return nil, fmt.Errorf("error parsing labels: %v", err)
+	}
+
+	nameToID := make(map[string]int64)
+	for _, l := range labels {
+		name, _ := l["name"].(string)
+		id, _ := l["id"].(float64)
+		nameToID[name] = int64(id)
+	}
+
+	var ids []int64
+	for _, name := range names {
+		if id, ok := nameToID[name]; ok {
+			ids = append(ids, id)
+		} else {
+			fmt.Fprintf(os.Stderr, "Warning: label %q not found\n", name)
+		}
+	}
+	return ids, nil
+}
+
+func readBody(bodyFlag, bodyFileFlag string) (string, error) {
+	if bodyFileFlag != "" {
+		data, err := os.ReadFile(bodyFileFlag)
+		if err != nil {
+			return "", err
+		}
+		return string(data), nil
+	}
+	return bodyFlag, nil
 }
 
 func printTriageMarkdown(result map[string]any) {

@@ -55,7 +55,7 @@ tea issues close IDX
 ### Dependencies
 
 ```bash
-# Add: issue X blocks issue Y
+# Add: issue X is blocked by issue Y (Y blocks X)
 gitea-robot add-dep --owner OWNER --repo REPO --issue X --blocks Y
 ```
 
