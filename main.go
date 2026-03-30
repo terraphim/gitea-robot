@@ -7,7 +7,9 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"os"
+	"time"
 )
 
 var (
@@ -19,6 +21,9 @@ func main() {
 	if giteaURL == "" {
 		giteaURL = "http://localhost:3000"
 	}
+
+	// Set global HTTP client timeout to prevent MCP server hangs
+	http.DefaultClient.Timeout = 30 * time.Second
 
 	if len(os.Args) < 2 || os.Args[1] == "help" || os.Args[1] == "--help" || os.Args[1] == "-h" {
 		printUsage()

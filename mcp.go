@@ -880,7 +880,10 @@ func handleTriageTool(args json.RawMessage, id *json.RawMessage) any {
 	_ = format
 
 	url := fmt.Sprintf("%s/api/v1/robot/triage?owner=%s&repo=%s", giteaURL, *argsStruct.Owner, *argsStruct.Repo)
-	output := apiGet(url)
+	output, err := apiGetSafe(url)
+	if err != nil {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32603, Message: err.Error()}}
+	}
 
 	return MCPResponse{
 		JSONRPC: "2.0",
@@ -927,7 +930,10 @@ func handleReadyTool(args json.RawMessage, id *json.RawMessage) any {
 	}
 
 	url := fmt.Sprintf("%s/api/v1/robot/ready?owner=%s&repo=%s", giteaURL, *argsStruct.Owner, *argsStruct.Repo)
-	output := apiGet(url)
+	output, err := apiGetSafe(url)
+	if err != nil {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32603, Message: err.Error()}}
+	}
 
 	return MCPResponse{
 		JSONRPC: "2.0",
@@ -974,7 +980,10 @@ func handleGraphTool(args json.RawMessage, id *json.RawMessage) any {
 	}
 
 	url := fmt.Sprintf("%s/api/v1/robot/graph?owner=%s&repo=%s", giteaURL, *argsStruct.Owner, *argsStruct.Repo)
-	output := apiGet(url)
+	output, err := apiGetSafe(url)
+	if err != nil {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32603, Message: err.Error()}}
+	}
 
 	return MCPResponse{
 		JSONRPC: "2.0",
