@@ -7,7 +7,7 @@
 | Before (Beads) | After (Gitea) |
 |---|---|
 | `br ready --json` | `gitea-robot ready --owner O --repo R` |
-| `br ready` (text) | `gitea-robot ready --owner O --repo R --format markdown` |
+| `br ready` (text) | `gitea-robot triage --owner O --repo R --format markdown` |
 | `bd ready --json` | Same as above |
 
 ### Task CRUD

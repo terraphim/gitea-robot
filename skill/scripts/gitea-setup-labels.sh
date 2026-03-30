@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Create standard labels on a Gitea repository for the PageRank workflow.
-# Usage: ./gitea-setup-labels.sh [--owner OWNER] [--repo REPO]
+# Usage: ./gitea-setup-labels.sh OWNER REPO
 #
 # Requires: tea CLI authenticated, GITEA_URL and GITEA_TOKEN set.
 
@@ -16,13 +16,18 @@ create_label() {
     local name="$1" color="$2" description="$3"
     # Strip leading # from color if present
     color="${color#\#}"
-    curl -s -X POST \
+    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
         -H "Authorization: token $GITEA_TOKEN" \
         -H "Content-Type: application/json" \
         -d "{\"name\":\"$name\",\"color\":\"#$color\",\"description\":\"$description\"}" \
-        "$GITEA_URL/api/v1/repos/$OWNER/$REPO/labels" \
-        > /dev/null 2>&1 || true
-    echo "  Created: $name"
+        "$GITEA_URL/api/v1/repos/$OWNER/$REPO/labels" 2>/dev/null) || true
+    if [ "$HTTP_CODE" = "201" ]; then
+        echo "  Created: $name"
+    elif [ "$HTTP_CODE" = "409" ]; then
+        echo "  Exists: $name"
+    else
+        echo "  FAILED: $name (HTTP $HTTP_CODE)"
+    fi
 }
 
 echo "Setting up labels for $OWNER/$REPO..."
