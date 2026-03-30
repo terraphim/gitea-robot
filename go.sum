@@ -1,0 +1,6 @@
+github.com/spf13/cobra v1.8.1 h1:e5/vxKd/rZsfSJMUX1agt2T4N5lKFXvSAGK3LsNGtMg=
+github.com/spf13/cobra v1.8.1/go.mod h1:wHxEcudfqmLYa8iTfL+OZiEkEJ6WM6ZqGjvdOA/k6EI=
+github.com/spf13/pflag v1.0.5 h1:iy+VFUOCP1a+8yFto/drg3CJ5u0yRoB7fZw3DKvJXAk=
+github.com/spf13/pflag v1.0.5/go.mod h1:McXfInjrR6WR8iQ7Kl/YxuYMaTrbghFBBa9kCqkE1OE=
+github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVp8pXqAQbWmwBF/mEgNp2mx8YgR1PpGU7Usso=
+github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=

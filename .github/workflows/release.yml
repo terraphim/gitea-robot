@@ -38,11 +38,12 @@ jobs:
           GOOS: ${{ matrix.os }}
           GOARCH: ${{ matrix.arch }}
         run: |
+          set -e
           VERSION=${GITHUB_REF_NAME}
           EXT=""
           if [ "${{ matrix.os }}" = "windows" ]; then EXT=".exe"; fi
           go build -ldflags "-s -w -X main.version=${VERSION}" \
-            -o gitea-robot-${{ matrix.os }}-${{ matrix.arch }}${EXT} .
+            -o gitea-robot-${{ matrix.os }}-${{ matrix.arch }}${EXT} ./cmd/gitea-robot/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

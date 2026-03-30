@@ -22,6 +22,8 @@ tea issues edit IDX --add-labels "status/in-progress" --add-assignees "AGENT_NAM
 tea comment IDX "Starting work on this issue. Working on branch task/IDX-short-title."
 ```
 
+NOTE: This is a best-effort convention. Two agents may race between step 2 and step 3. Server-side atomic claim is preferable where available.
+
 ## File Reservation (Replaces Agent Mail `file_reservation_paths`)
 
 Gitea has no native file-reservation mechanism. Use these conventions:

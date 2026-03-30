@@ -16,6 +16,8 @@ export GITEA_TOKEN=$(op read "op://TerraphimPlatform/gitea-test-token/credential
 
 Verify: `curl -s -H "Authorization: token $GITEA_TOKEN" "$GITEA_URL/api/v1/user" | jq .login`
 
+NOTE: GITEA_TOKEN is visible in `/proc/*/environ` on Linux. Use `--token` flag or secrets manager for sensitive environments.
+
 ## Core Commands
 
 ### Discover Work (PageRank-ranked)
