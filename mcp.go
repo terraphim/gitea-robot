@@ -102,17 +102,44 @@ func sendResponse(writer *bufio.Writer, resp any) {
 	data, err := json.Marshal(resp)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error marshaling response: %v\n", err)
-		os.Exit(1)
+		return
 	}
 	_, err = writer.Write(append(data, '\n'))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error writing response: %v\n", err)
-		os.Exit(1)
+		return
 	}
 	err = writer.Flush()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error flushing writer: %v\n", err)
-		os.Exit(1)
+		return
+	}
+}
+
+// toolResult wraps a text string in MCP CallToolResult format
+func toolResult(id *json.RawMessage, text string) MCPResponse {
+	return MCPResponse{
+		JSONRPC: "2.0",
+		ID:      id,
+		Result: map[string]any{
+			"content": []map[string]any{
+				{"type": "text", "text": text},
+			},
+		},
+	}
+}
+
+// toolError wraps an error message in MCP CallToolResult format with isError=true
+func toolErrorResult(id *json.RawMessage, msg string) MCPResponse {
+	return MCPResponse{
+		JSONRPC: "2.0",
+		ID:      id,
+		Result: map[string]any{
+			"content": []map[string]any{
+				{"type": "text", "text": msg},
+			},
+			"isError": true,
+		},
 	}
 }
 
@@ -882,14 +909,10 @@ func handleTriageTool(args json.RawMessage, id *json.RawMessage) any {
 	url := fmt.Sprintf("%s/api/v1/robot/triage?owner=%s&repo=%s", giteaURL, *argsStruct.Owner, *argsStruct.Repo)
 	output, err := apiGetSafe(url)
 	if err != nil {
-		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32603, Message: err.Error()}}
+		return toolErrorResult(id, err.Error())
 	}
 
-	return MCPResponse{
-		JSONRPC: "2.0",
-		ID:      id,
-		Result:  output,
-	}
+	return toolResult(id, output)
 }
 
 func handleReadyTool(args json.RawMessage, id *json.RawMessage) any {
@@ -932,14 +955,10 @@ func handleReadyTool(args json.RawMessage, id *json.RawMessage) any {
 	url := fmt.Sprintf("%s/api/v1/robot/ready?owner=%s&repo=%s", giteaURL, *argsStruct.Owner, *argsStruct.Repo)
 	output, err := apiGetSafe(url)
 	if err != nil {
-		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32603, Message: err.Error()}}
+		return toolErrorResult(id, err.Error())
 	}
 
-	return MCPResponse{
-		JSONRPC: "2.0",
-		ID:      id,
-		Result:  output,
-	}
+	return toolResult(id, output)
 }
 
 func handleGraphTool(args json.RawMessage, id *json.RawMessage) any {
@@ -982,14 +1001,10 @@ func handleGraphTool(args json.RawMessage, id *json.RawMessage) any {
 	url := fmt.Sprintf("%s/api/v1/robot/graph?owner=%s&repo=%s", giteaURL, *argsStruct.Owner, *argsStruct.Repo)
 	output, err := apiGetSafe(url)
 	if err != nil {
-		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32603, Message: err.Error()}}
+		return toolErrorResult(id, err.Error())
 	}
 
-	return MCPResponse{
-		JSONRPC: "2.0",
-		ID:      id,
-		Result:  output,
-	}
+	return toolResult(id, output)
 }
 
 func handleAddDepTool(args json.RawMessage, id *json.RawMessage) any {
@@ -1065,21 +1080,10 @@ func handleAddDepTool(args json.RawMessage, id *json.RawMessage) any {
 
 	output, err := apiPostSafe(url, body)
 	if err != nil {
-		return MCPErrorResponse{
-			JSONRPC: "2.0",
-			ID:      id,
-			Error: &MCPError{
-				Code:    -32603,
-				Message: err.Error(),
-			},
-		}
+		return toolErrorResult(id, err.Error())
 	}
 
-	return MCPResponse{
-		JSONRPC: "2.0",
-		ID:      id,
-		Result:  output,
-	}
+	return toolResult(id, output)
 }
 
 func handlePing(req MCPRequest) any {
@@ -1130,14 +1134,10 @@ func handleListLabelsTool(args json.RawMessage, id *json.RawMessage) any {
 	url := fmt.Sprintf("%s/api/v1/repos/%s/%s/labels?limit=%d", giteaURL, *argsStruct.Owner, *argsStruct.Repo, limit)
 	data, err := apiGetSafe(url)
 	if err != nil {
-		return MCPErrorResponse{
-			JSONRPC: "2.0",
-			ID:      id,
-			Error:   &MCPError{Code: -32603, Message: err.Error()},
-		}
+		return toolErrorResult(id, err.Error())
 	}
 
-	return MCPResponse{JSONRPC: "2.0", ID: id, Result: data}
+	return toolResult(id, data)
 }
 
 func handleListPullsTool(args json.RawMessage, id *json.RawMessage) any {
@@ -1191,14 +1191,10 @@ func handleListPullsTool(args json.RawMessage, id *json.RawMessage) any {
 
 	data, err := apiGetSafe(url)
 	if err != nil {
-		return MCPErrorResponse{
-			JSONRPC: "2.0",
-			ID:      id,
-			Error:   &MCPError{Code: -32603, Message: err.Error()},
-		}
+		return toolErrorResult(id, err.Error())
 	}
 
-	return MCPResponse{JSONRPC: "2.0", ID: id, Result: data}
+	return toolResult(id, data)
 }
 
 func handleCreatePullTool(args json.RawMessage, id *json.RawMessage) any {
@@ -1294,14 +1290,10 @@ func handleCreatePullTool(args json.RawMessage, id *json.RawMessage) any {
 	url := fmt.Sprintf("%s/api/v1/repos/%s/%s/pulls", giteaURL, *argsStruct.Owner, *argsStruct.Repo)
 	output, err := apiPostSafe(url, string(jsonBody))
 	if err != nil {
-		return MCPErrorResponse{
-			JSONRPC: "2.0",
-			ID:      id,
-			Error:   &MCPError{Code: -32603, Message: err.Error()},
-		}
+		return toolErrorResult(id, err.Error())
 	}
 
-	return MCPResponse{JSONRPC: "2.0", ID: id, Result: output}
+	return toolResult(id, output)
 }
 
 func handleMergePullTool(args json.RawMessage, id *json.RawMessage) any {
@@ -1370,14 +1362,10 @@ func handleMergePullTool(args json.RawMessage, id *json.RawMessage) any {
 		giteaURL, *argsStruct.Owner, *argsStruct.Repo, *argsStruct.Index)
 	output, err := apiPostSafe(url, string(jsonBody))
 	if err != nil {
-		return MCPErrorResponse{
-			JSONRPC: "2.0",
-			ID:      id,
-			Error:   &MCPError{Code: -32603, Message: err.Error()},
-		}
+		return toolErrorResult(id, err.Error())
 	}
 
-	return MCPResponse{JSONRPC: "2.0", ID: id, Result: output}
+	return toolResult(id, output)
 }
 
 func handleViewIssueTool(args json.RawMessage, id *json.RawMessage) any {
@@ -1407,10 +1395,10 @@ func handleViewIssueTool(args json.RawMessage, id *json.RawMessage) any {
 	url := fmt.Sprintf("%s/api/v1/repos/%s/%s/issues/%d", giteaURL, *argsStruct.Owner, *argsStruct.Repo, *argsStruct.Index)
 	data, err := apiGetSafe(url)
 	if err != nil {
-		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32603, Message: err.Error()}}
+		return toolErrorResult(id, err.Error())
 	}
 
-	return MCPResponse{JSONRPC: "2.0", ID: id, Result: data}
+	return toolResult(id, data)
 }
 
 func handleViewPullTool(args json.RawMessage, id *json.RawMessage) any {
@@ -1440,10 +1428,10 @@ func handleViewPullTool(args json.RawMessage, id *json.RawMessage) any {
 	url := fmt.Sprintf("%s/api/v1/repos/%s/%s/pulls/%d", giteaURL, *argsStruct.Owner, *argsStruct.Repo, *argsStruct.Index)
 	data, err := apiGetSafe(url)
 	if err != nil {
-		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32603, Message: err.Error()}}
+		return toolErrorResult(id, err.Error())
 	}
 
-	return MCPResponse{JSONRPC: "2.0", ID: id, Result: data}
+	return toolResult(id, data)
 }
 
 func handleCreateLabelTool(args json.RawMessage, id *json.RawMessage) any {
@@ -1492,10 +1480,10 @@ func handleCreateLabelTool(args json.RawMessage, id *json.RawMessage) any {
 	url := fmt.Sprintf("%s/api/v1/repos/%s/%s/labels", giteaURL, *argsStruct.Owner, *argsStruct.Repo)
 	output, err := apiPostSafe(url, string(jsonBody))
 	if err != nil {
-		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32603, Message: err.Error()}}
+		return toolErrorResult(id, err.Error())
 	}
 
-	return MCPResponse{JSONRPC: "2.0", ID: id, Result: output}
+	return toolResult(id, output)
 }
 
 func handleCreateRepoTool(args json.RawMessage, id *json.RawMessage) any {
@@ -1550,10 +1538,10 @@ func handleCreateRepoTool(args json.RawMessage, id *json.RawMessage) any {
 	jsonBody, _ := json.Marshal(payload)
 	output, err := apiPostSafe(url, string(jsonBody))
 	if err != nil {
-		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32603, Message: err.Error()}}
+		return toolErrorResult(id, err.Error())
 	}
 
-	return MCPResponse{JSONRPC: "2.0", ID: id, Result: output}
+	return toolResult(id, output)
 }
 
 func handleCreateReleaseTool(args json.RawMessage, id *json.RawMessage) any {
@@ -1602,10 +1590,10 @@ func handleCreateReleaseTool(args json.RawMessage, id *json.RawMessage) any {
 	url := fmt.Sprintf("%s/api/v1/repos/%s/%s/releases", giteaURL, *argsStruct.Owner, *argsStruct.Repo)
 	output, err := apiPostSafe(url, string(jsonBody))
 	if err != nil {
-		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32603, Message: err.Error()}}
+		return toolErrorResult(id, err.Error())
 	}
 
-	return MCPResponse{JSONRPC: "2.0", ID: id, Result: output}
+	return toolResult(id, output)
 }
 
 func handleListReposTool(args json.RawMessage, id *json.RawMessage) any {
@@ -1634,10 +1622,10 @@ func handleListReposTool(args json.RawMessage, id *json.RawMessage) any {
 
 	data, err := apiGetSafe(url)
 	if err != nil {
-		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32603, Message: err.Error()}}
+		return toolErrorResult(id, err.Error())
 	}
 
-	return MCPResponse{JSONRPC: "2.0", ID: id, Result: data}
+	return toolResult(id, data)
 }
 
 func handleForkRepoTool(args json.RawMessage, id *json.RawMessage) any {
@@ -1670,10 +1658,10 @@ func handleForkRepoTool(args json.RawMessage, id *json.RawMessage) any {
 	url := fmt.Sprintf("%s/api/v1/repos/%s/%s/forks", giteaURL, *argsStruct.Owner, *argsStruct.Repo)
 	output, err := apiPostSafe(url, string(jsonBody))
 	if err != nil {
-		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32603, Message: err.Error()}}
+		return toolErrorResult(id, err.Error())
 	}
 
-	return MCPResponse{JSONRPC: "2.0", ID: id, Result: output}
+	return toolResult(id, output)
 }
 
 func handleListIssuesTool(args json.RawMessage, id *json.RawMessage) any {
@@ -1712,10 +1700,10 @@ func handleListIssuesTool(args json.RawMessage, id *json.RawMessage) any {
 
 	data, err := apiGetSafe(url)
 	if err != nil {
-		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32603, Message: err.Error()}}
+		return toolErrorResult(id, err.Error())
 	}
 
-	return MCPResponse{JSONRPC: "2.0", ID: id, Result: data}
+	return toolResult(id, data)
 }
 
 func handleCreateIssueTool(args json.RawMessage, id *json.RawMessage) any {
@@ -1762,10 +1750,10 @@ func handleCreateIssueTool(args json.RawMessage, id *json.RawMessage) any {
 	url := fmt.Sprintf("%s/api/v1/repos/%s/%s/issues", giteaURL, *argsStruct.Owner, *argsStruct.Repo)
 	output, err := apiPostSafe(url, string(jsonBody))
 	if err != nil {
-		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32603, Message: err.Error()}}
+		return toolErrorResult(id, err.Error())
 	}
 
-	return MCPResponse{JSONRPC: "2.0", ID: id, Result: output}
+	return toolResult(id, output)
 }
 
 func handleCommentTool(args json.RawMessage, id *json.RawMessage) any {
@@ -1797,10 +1785,10 @@ func handleCommentTool(args json.RawMessage, id *json.RawMessage) any {
 		giteaURL, *argsStruct.Owner, *argsStruct.Repo, *argsStruct.Issue)
 	output, err := apiPostSafe(url, string(jsonBody))
 	if err != nil {
-		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32603, Message: err.Error()}}
+		return toolErrorResult(id, err.Error())
 	}
 
-	return MCPResponse{JSONRPC: "2.0", ID: id, Result: output}
+	return toolResult(id, output)
 }
 
 func handleCloseIssueTool(args json.RawMessage, id *json.RawMessage) any {
@@ -1828,10 +1816,10 @@ func handleCloseIssueTool(args json.RawMessage, id *json.RawMessage) any {
 		giteaURL, *argsStruct.Owner, *argsStruct.Repo, *argsStruct.Issue)
 	output, err := apiPatchSafe(url, string(jsonBody))
 	if err != nil {
-		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32603, Message: err.Error()}}
+		return toolErrorResult(id, err.Error())
 	}
 
-	return MCPResponse{JSONRPC: "2.0", ID: id, Result: output}
+	return toolResult(id, output)
 }
 
 func handleEditIssueTool(args json.RawMessage, id *json.RawMessage) any {
@@ -1876,7 +1864,7 @@ func handleEditIssueTool(args json.RawMessage, id *json.RawMessage) any {
 			giteaURL, *argsStruct.Owner, *argsStruct.Repo, *argsStruct.Issue)
 		output, err := apiPatchSafe(url, string(jsonBody))
 		if err != nil {
-			return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32603, Message: err.Error()}}
+			return toolErrorResult(id, err.Error())
 		}
 		result = output
 	}
@@ -1893,7 +1881,7 @@ func handleEditIssueTool(args json.RawMessage, id *json.RawMessage) any {
 				giteaURL, *argsStruct.Owner, *argsStruct.Repo, *argsStruct.Issue)
 			labelResult, err := apiPostSafe(url, string(jsonBody))
 			if err != nil {
-				return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32603, Message: err.Error()}}
+				return toolErrorResult(id, err.Error())
 			}
 			if result == "" {
 				result = labelResult
