@@ -235,8 +235,8 @@ func TestMCPSubprocessIntegration(t *testing.T) {
 		if !ok {
 			t.Fatalf("Expected tools array, got %T", result["tools"])
 		}
-		if len(tools) != 20 {
-			t.Errorf("Expected 20 tools, got %d", len(tools))
+		if len(tools) != 25 {
+			t.Errorf("Expected 25 tools, got %d", len(tools))
 		}
 	})
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -788,6 +789,128 @@ func handleToolsList(req MCPRequest) any {
 						"required": []string{"owner", "repo", "issue"},
 					},
 				},
+				{
+					"name":        "wiki_create",
+					"description": "Create a wiki page",
+					"inputSchema": map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"owner": map[string]any{
+								"type":        "string",
+								"description": "Repository owner",
+							},
+							"repo": map[string]any{
+								"type":        "string",
+								"description": "Repository name",
+							},
+							"title": map[string]any{
+								"type":        "string",
+								"description": "Wiki page title",
+							},
+							"content": map[string]any{
+								"type":        "string",
+								"description": "Wiki page content (markdown)",
+							},
+							"message": map[string]any{
+								"type":        "string",
+								"description": "Commit message",
+							},
+						},
+						"required": []string{"owner", "repo", "title", "content"},
+					},
+				},
+				{
+					"name":        "wiki_list",
+					"description": "List wiki pages",
+					"inputSchema": map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"owner": map[string]any{
+								"type":        "string",
+								"description": "Repository owner",
+							},
+							"repo": map[string]any{
+								"type":        "string",
+								"description": "Repository name",
+							},
+						},
+						"required": []string{"owner", "repo"},
+					},
+				},
+				{
+					"name":        "wiki_get",
+					"description": "Get a wiki page with decoded content",
+					"inputSchema": map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"owner": map[string]any{
+								"type":        "string",
+								"description": "Repository owner",
+							},
+							"repo": map[string]any{
+								"type":        "string",
+								"description": "Repository name",
+							},
+							"name": map[string]any{
+								"type":        "string",
+								"description": "Wiki page name",
+							},
+						},
+						"required": []string{"owner", "repo", "name"},
+					},
+				},
+				{
+					"name":        "wiki_update",
+					"description": "Update a wiki page",
+					"inputSchema": map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"owner": map[string]any{
+								"type":        "string",
+								"description": "Repository owner",
+							},
+							"repo": map[string]any{
+								"type":        "string",
+								"description": "Repository name",
+							},
+							"name": map[string]any{
+								"type":        "string",
+								"description": "Wiki page name",
+							},
+							"content": map[string]any{
+								"type":        "string",
+								"description": "Wiki page content (markdown)",
+							},
+							"message": map[string]any{
+								"type":        "string",
+								"description": "Commit message",
+							},
+						},
+						"required": []string{"owner", "repo", "name", "content"},
+					},
+				},
+				{
+					"name":        "wiki_delete",
+					"description": "Delete a wiki page",
+					"inputSchema": map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"owner": map[string]any{
+								"type":        "string",
+								"description": "Repository owner",
+							},
+							"repo": map[string]any{
+								"type":        "string",
+								"description": "Repository name",
+							},
+							"name": map[string]any{
+								"type":        "string",
+								"description": "Wiki page name",
+							},
+						},
+						"required": []string{"owner", "repo", "name"},
+					},
+				},
 			},
 		},
 	}
@@ -850,6 +973,16 @@ func handleToolsCall(req MCPRequest) any {
 		return handleCloseIssueTool(params.Arguments, req.ID)
 	case "edit_issue":
 		return handleEditIssueTool(params.Arguments, req.ID)
+	case "wiki_create":
+		return handleWikiCreateTool(params.Arguments, req.ID)
+	case "wiki_list":
+		return handleWikiListTool(params.Arguments, req.ID)
+	case "wiki_get":
+		return handleWikiGetTool(params.Arguments, req.ID)
+	case "wiki_update":
+		return handleWikiUpdateTool(params.Arguments, req.ID)
+	case "wiki_delete":
+		return handleWikiDeleteTool(params.Arguments, req.ID)
 	default:
 		return MCPErrorResponse{
 			JSONRPC: "2.0",
@@ -1894,4 +2027,193 @@ func handleEditIssueTool(args json.RawMessage, id *json.RawMessage) any {
 	}
 
 	return MCPResponse{JSONRPC: "2.0", ID: id, Result: result}
+}
+
+func handleWikiCreateTool(args json.RawMessage, id *json.RawMessage) any {
+	var argsStruct struct {
+		Owner   *string `json:"owner,omitempty"`
+		Repo    *string `json:"repo,omitempty"`
+		Title   *string `json:"title,omitempty"`
+		Content *string `json:"content,omitempty"`
+		Message *string `json:"message,omitempty"`
+	}
+	if err := json.Unmarshal(args, &argsStruct); err != nil {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Invalid arguments for wiki_create: " + err.Error()}}
+	}
+
+	if argsStruct.Owner == nil || *argsStruct.Owner == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: owner"}}
+	}
+	if argsStruct.Repo == nil || *argsStruct.Repo == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: repo"}}
+	}
+	if argsStruct.Title == nil || *argsStruct.Title == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: title"}}
+	}
+	if argsStruct.Content == nil || *argsStruct.Content == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: content"}}
+	}
+
+	contentBase64 := base64.StdEncoding.EncodeToString([]byte(*argsStruct.Content))
+	commitMsg := "Create wiki page: " + *argsStruct.Title
+	if argsStruct.Message != nil && *argsStruct.Message != "" {
+		commitMsg = *argsStruct.Message
+	}
+
+	payload := map[string]any{
+		"title":          *argsStruct.Title,
+		"content_base64": contentBase64,
+		"message":        commitMsg,
+	}
+
+	jsonBody, _ := json.Marshal(payload)
+	url := fmt.Sprintf("%s/api/v1/repos/%s/%s/wiki/new", giteaURL, *argsStruct.Owner, *argsStruct.Repo)
+	output, err := apiPostSafe(url, string(jsonBody))
+	if err != nil {
+		return toolErrorResult(id, err.Error())
+	}
+
+	return toolResult(id, output)
+}
+
+func handleWikiListTool(args json.RawMessage, id *json.RawMessage) any {
+	var argsStruct struct {
+		Owner *string `json:"owner,omitempty"`
+		Repo  *string `json:"repo,omitempty"`
+	}
+	if err := json.Unmarshal(args, &argsStruct); err != nil {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Invalid arguments for wiki_list: " + err.Error()}}
+	}
+
+	if argsStruct.Owner == nil || *argsStruct.Owner == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: owner"}}
+	}
+	if argsStruct.Repo == nil || *argsStruct.Repo == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: repo"}}
+	}
+
+	url := fmt.Sprintf("%s/api/v1/repos/%s/%s/wiki/pages", giteaURL, *argsStruct.Owner, *argsStruct.Repo)
+	data, err := apiGetSafe(url)
+	if err != nil {
+		return toolErrorResult(id, err.Error())
+	}
+
+	return toolResult(id, data)
+}
+
+func handleWikiGetTool(args json.RawMessage, id *json.RawMessage) any {
+	var argsStruct struct {
+		Owner *string `json:"owner,omitempty"`
+		Repo  *string `json:"repo,omitempty"`
+		Name  *string `json:"name,omitempty"`
+	}
+	if err := json.Unmarshal(args, &argsStruct); err != nil {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Invalid arguments for wiki_get: " + err.Error()}}
+	}
+
+	if argsStruct.Owner == nil || *argsStruct.Owner == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: owner"}}
+	}
+	if argsStruct.Repo == nil || *argsStruct.Repo == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: repo"}}
+	}
+	if argsStruct.Name == nil || *argsStruct.Name == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: name"}}
+	}
+
+	url := fmt.Sprintf("%s/api/v1/repos/%s/%s/wiki/page/%s", giteaURL, *argsStruct.Owner, *argsStruct.Repo, *argsStruct.Name)
+	data, err := apiGetSafe(url)
+	if err != nil {
+		return toolErrorResult(id, err.Error())
+	}
+
+	var page map[string]any
+	if err := json.Unmarshal([]byte(data), &page); err == nil {
+		if contentBase64, ok := page["content_base64"].(string); ok {
+			decoded, err := base64.StdEncoding.DecodeString(contentBase64)
+			if err == nil {
+				page["content"] = string(decoded)
+				delete(page, "content_base64")
+			}
+		}
+		decodedJSON, _ := json.Marshal(page)
+		return toolResult(id, string(decodedJSON))
+	}
+
+	return toolResult(id, data)
+}
+
+func handleWikiUpdateTool(args json.RawMessage, id *json.RawMessage) any {
+	var argsStruct struct {
+		Owner   *string `json:"owner,omitempty"`
+		Repo    *string `json:"repo,omitempty"`
+		Name    *string `json:"name,omitempty"`
+		Content *string `json:"content,omitempty"`
+		Message *string `json:"message,omitempty"`
+	}
+	if err := json.Unmarshal(args, &argsStruct); err != nil {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Invalid arguments for wiki_update: " + err.Error()}}
+	}
+
+	if argsStruct.Owner == nil || *argsStruct.Owner == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: owner"}}
+	}
+	if argsStruct.Repo == nil || *argsStruct.Repo == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: repo"}}
+	}
+	if argsStruct.Name == nil || *argsStruct.Name == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: name"}}
+	}
+	if argsStruct.Content == nil || *argsStruct.Content == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: content"}}
+	}
+
+	contentBase64 := base64.StdEncoding.EncodeToString([]byte(*argsStruct.Content))
+	commitMsg := "Update wiki page: " + *argsStruct.Name
+	if argsStruct.Message != nil && *argsStruct.Message != "" {
+		commitMsg = *argsStruct.Message
+	}
+
+	payload := map[string]any{
+		"content_base64": contentBase64,
+		"message":        commitMsg,
+	}
+
+	jsonBody, _ := json.Marshal(payload)
+	url := fmt.Sprintf("%s/api/v1/repos/%s/%s/wiki/page/%s", giteaURL, *argsStruct.Owner, *argsStruct.Repo, *argsStruct.Name)
+	output, err := apiPatchSafe(url, string(jsonBody))
+	if err != nil {
+		return toolErrorResult(id, err.Error())
+	}
+
+	return toolResult(id, output)
+}
+
+func handleWikiDeleteTool(args json.RawMessage, id *json.RawMessage) any {
+	var argsStruct struct {
+		Owner *string `json:"owner,omitempty"`
+		Repo  *string `json:"repo,omitempty"`
+		Name  *string `json:"name,omitempty"`
+	}
+	if err := json.Unmarshal(args, &argsStruct); err != nil {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Invalid arguments for wiki_delete: " + err.Error()}}
+	}
+
+	if argsStruct.Owner == nil || *argsStruct.Owner == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: owner"}}
+	}
+	if argsStruct.Repo == nil || *argsStruct.Repo == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: repo"}}
+	}
+	if argsStruct.Name == nil || *argsStruct.Name == "" {
+		return MCPErrorResponse{JSONRPC: "2.0", ID: id, Error: &MCPError{Code: -32602, Message: "Missing required argument: name"}}
+	}
+
+	url := fmt.Sprintf("%s/api/v1/repos/%s/%s/wiki/page/%s", giteaURL, *argsStruct.Owner, *argsStruct.Repo, *argsStruct.Name)
+	_, err := apiDeleteSafe(url)
+	if err != nil {
+		return toolErrorResult(id, err.Error())
+	}
+
+	return toolResult(id, fmt.Sprintf(`{"message":"Wiki page '%s' deleted"}`, *argsStruct.Name))
 }

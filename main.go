@@ -81,6 +81,16 @@ func main() {
 		forkRepoCmd()
 	case "mcp-server":
 		mcpServerCmd()
+	case "wiki-create":
+		wikiCreateCmd()
+	case "wiki-list":
+		wikiListCmd()
+	case "wiki-get":
+		wikiGetCmd()
+	case "wiki-update":
+		wikiUpdateCmd()
+	case "wiki-delete":
+		wikiDeleteCmd()
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", command)
 		printUsage()
@@ -116,6 +126,11 @@ Commands:
   list-repos      List repositories
   fork-repo       Fork a repository
   mcp-server      Start MCP server exposing gitea-robot functionality
+  wiki-create     Create a wiki page
+  wiki-list       List wiki pages
+  wiki-get        Get a wiki page with decoded content
+  wiki-update     Update a wiki page
+  wiki-delete     Delete a wiki page
 
 Environment:
   GITEA_URL    Gitea instance URL (default: http://localhost:3000)
@@ -142,6 +157,21 @@ Examples:
 
   # Close an issue
   gitea-robot close-issue --owner terraphim --repo terraphim-ai --issue 42
+
+  # Create a wiki page
+  gitea-robot wiki-create --owner terraphim --repo gitea --title "Home" --content "# Welcome"
+
+  # List wiki pages
+  gitea-robot wiki-list --owner terraphim --repo gitea
+
+  # Get a wiki page
+  gitea-robot wiki-get --owner terraphim --repo gitea --name "Home"
+
+  # Update a wiki page from file
+  gitea-robot wiki-update --owner terraphim --repo gitea --name "Home" --file docs/home.md
+
+  # Delete a wiki page
+  gitea-robot wiki-delete --owner terraphim --repo gitea --name "Home"
 
   # Start MCP server
   gitea-robot mcp-server`)

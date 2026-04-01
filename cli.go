@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -522,8 +523,8 @@ func mergePullCmd() {
 	}
 
 	payload := map[string]any{
-		"Do":                          *style,
-		"delete_branch_after_merge":   *deleteBranch,
+		"Do":                        *style,
+		"delete_branch_after_merge": *deleteBranch,
 	}
 	if *mergeTitle != "" {
 		payload["merge_title_field"] = *mergeTitle
@@ -810,4 +811,190 @@ func forkRepoCmd() {
 		}
 	}
 	fmt.Println(result)
+}
+
+// Wiki commands
+
+func wikiCreateCmd() {
+	fs := flag.NewFlagSet("wiki-create", flag.ExitOnError)
+	owner := fs.String("owner", "", "Repository owner")
+	repo := fs.String("repo", "", "Repository name")
+	title := fs.String("title", "", "Wiki page title")
+	content := fs.String("content", "", "Wiki page content (markdown)")
+	file := fs.String("file", "", "Read content from file (alternative to --content)")
+	message := fs.String("message", "", "Commit message (default: \"Create wiki page: {title}\")")
+	fs.Parse(os.Args[1:])
+
+	if *owner == "" || *repo == "" || *title == "" {
+		fmt.Fprintln(os.Stderr, "Error: --owner, --repo, and --title required")
+		fs.Usage()
+		os.Exit(1)
+	}
+
+	var pageContent string
+	var err error
+	if *file != "" {
+		data, err := os.ReadFile(*file)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error reading file: %v\n", err)
+			os.Exit(1)
+		}
+		pageContent = string(data)
+	} else if *content != "" {
+		pageContent = *content
+	} else {
+		fmt.Fprintln(os.Stderr, "Error: --content or --file required")
+		fs.Usage()
+		os.Exit(1)
+	}
+
+	commitMsg := *message
+	if commitMsg == "" {
+		commitMsg = fmt.Sprintf("Create wiki page: %s", *title)
+	}
+
+	contentBase64 := base64.StdEncoding.EncodeToString([]byte(pageContent))
+	payload := map[string]any{
+		"title":          *title,
+		"content_base64": contentBase64,
+		"message":        commitMsg,
+	}
+
+	jsonBody, _ := json.Marshal(payload)
+	u := fmt.Sprintf("%s/api/v1/repos/%s/%s/wiki/new", giteaURL, *owner, *repo)
+	result, err := apiPostSafe(u, string(jsonBody))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Println(result)
+}
+
+func wikiListCmd() {
+	fs := flag.NewFlagSet("wiki-list", flag.ExitOnError)
+	owner := fs.String("owner", "", "Repository owner")
+	repo := fs.String("repo", "", "Repository name")
+	fs.Parse(os.Args[1:])
+
+	if *owner == "" || *repo == "" {
+		fmt.Fprintln(os.Stderr, "Error: --owner and --repo required")
+		fs.Usage()
+		os.Exit(1)
+	}
+
+	u := fmt.Sprintf("%s/api/v1/repos/%s/%s/wiki/pages", giteaURL, *owner, *repo)
+	data := apiGet(u)
+	fmt.Println(data)
+}
+
+func wikiGetCmd() {
+	fs := flag.NewFlagSet("wiki-get", flag.ExitOnError)
+	owner := fs.String("owner", "", "Repository owner")
+	repo := fs.String("repo", "", "Repository name")
+	name := fs.String("name", "", "Wiki page name")
+	fs.Parse(os.Args[1:])
+
+	if *owner == "" || *repo == "" || *name == "" {
+		fmt.Fprintln(os.Stderr, "Error: --owner, --repo, and --name required")
+		fs.Usage()
+		os.Exit(1)
+	}
+
+	u := fmt.Sprintf("%s/api/v1/repos/%s/%s/wiki/page/%s", giteaURL, *owner, *repo, *name)
+	data := apiGet(u)
+
+	// Decode base64 content for user-readable output
+	var page map[string]any
+	if err := json.Unmarshal([]byte(data), &page); err == nil {
+		if contentBase64, ok := page["content_base64"].(string); ok {
+			decoded, err := base64.StdEncoding.DecodeString(contentBase64)
+			if err == nil {
+				page["content"] = string(decoded)
+				delete(page, "content_base64")
+			}
+		}
+		decodedJSON, _ := json.Marshal(page)
+		fmt.Println(string(decodedJSON))
+	} else {
+		fmt.Println(data)
+	}
+}
+
+func wikiUpdateCmd() {
+	fs := flag.NewFlagSet("wiki-update", flag.ExitOnError)
+	owner := fs.String("owner", "", "Repository owner")
+	repo := fs.String("repo", "", "Repository name")
+	name := fs.String("name", "", "Wiki page name")
+	content := fs.String("content", "", "Wiki page content (markdown)")
+	file := fs.String("file", "", "Read content from file (alternative to --content)")
+	message := fs.String("message", "", "Commit message (default: \"Update wiki page: {name}\")")
+	fs.Parse(os.Args[1:])
+
+	if *owner == "" || *repo == "" || *name == "" {
+		fmt.Fprintln(os.Stderr, "Error: --owner, --repo, and --name required")
+		fs.Usage()
+		os.Exit(1)
+	}
+
+	var pageContent string
+	var err error
+	if *file != "" {
+		data, err := os.ReadFile(*file)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error reading file: %v\n", err)
+			os.Exit(1)
+		}
+		pageContent = string(data)
+	} else if *content != "" {
+		pageContent = *content
+	} else {
+		fmt.Fprintln(os.Stderr, "Error: --content or --file required")
+		fs.Usage()
+		os.Exit(1)
+	}
+
+	commitMsg := *message
+	if commitMsg == "" {
+		commitMsg = fmt.Sprintf("Update wiki page: %s", *name)
+	}
+
+	contentBase64 := base64.StdEncoding.EncodeToString([]byte(pageContent))
+	payload := map[string]any{
+		"content_base64": contentBase64,
+		"message":        commitMsg,
+	}
+
+	jsonBody, _ := json.Marshal(payload)
+	u := fmt.Sprintf("%s/api/v1/repos/%s/%s/wiki/page/%s", giteaURL, *owner, *repo, *name)
+	result, err := apiPatchSafe(u, string(jsonBody))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Println(result)
+}
+
+func wikiDeleteCmd() {
+	fs := flag.NewFlagSet("wiki-delete", flag.ExitOnError)
+	owner := fs.String("owner", "", "Repository owner")
+	repo := fs.String("repo", "", "Repository name")
+	name := fs.String("name", "", "Wiki page name")
+	fs.Parse(os.Args[1:])
+
+	if *owner == "" || *repo == "" || *name == "" {
+		fmt.Fprintln(os.Stderr, "Error: --owner, --repo, and --name required")
+		fs.Usage()
+		os.Exit(1)
+	}
+
+	u := fmt.Sprintf("%s/api/v1/repos/%s/%s/wiki/page/%s", giteaURL, *owner, *repo, *name)
+	_, err := apiDeleteSafe(u)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("Wiki page '%s' deleted\n", *name)
 }
