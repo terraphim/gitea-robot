@@ -209,9 +209,9 @@ func TestHandleToolsList(t *testing.T) {
 		t.Fatalf("Expected tools to be []map[string]interface{}, got %T", result["tools"])
 	}
 
-	// Verify we have 20 tools
-	if len(tools) != 20 {
-		t.Errorf("Expected 20 tools, got %d", len(tools))
+	// Verify we have 25 tools
+	if len(tools) != 25 {
+		t.Errorf("Expected 25 tools, got %d", len(tools))
 	}
 
 	// Verify tool names
@@ -236,6 +236,11 @@ func TestHandleToolsList(t *testing.T) {
 		"comment":        false,
 		"close_issue":    false,
 		"edit_issue":     false,
+		"wiki_create":    false,
+		"wiki_list":      false,
+		"wiki_get":       false,
+		"wiki_update":    false,
+		"wiki_delete":    false,
 	}
 
 	for _, tool := range tools {
@@ -1434,4 +1439,148 @@ func TestCaptureStdoutWithError(t *testing.T) {
 func jsonRawMessagePtr(s string) *json.RawMessage {
 	raw := json.RawMessage(s)
 	return &raw
+}
+
+func TestHandleWikiCreateToolValidation(t *testing.T) {
+	tests := []struct {
+		name        string
+		args        string
+		wantErr     bool
+		errContains string
+	}{
+		{name: "Missing owner", args: `{"repo":"test","title":"Home","content":"# Welcome"}`, wantErr: true, errContains: "owner"},
+		{name: "Missing repo", args: `{"owner":"terraphim","title":"Home","content":"# Welcome"}`, wantErr: true, errContains: "repo"},
+		{name: "Missing title", args: `{"owner":"terraphim","repo":"test","content":"# Welcome"}`, wantErr: true, errContains: "title"},
+		{name: "Missing content", args: `{"owner":"terraphim","repo":"test","title":"Home"}`, wantErr: true, errContains: "content"},
+		{name: "Empty title", args: `{"owner":"terraphim","repo":"test","title":"","content":"# Welcome"}`, wantErr: true, errContains: "title"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			id := jsonRawMessagePtr(`1`)
+			resp := handleWikiCreateTool(json.RawMessage(tt.args), id)
+			if tt.wantErr {
+				errResp, ok := resp.(MCPErrorResponse)
+				if !ok {
+					t.Fatalf("Expected MCPErrorResponse, got %T", resp)
+				}
+				if errResp.Error == nil || !strings.Contains(errResp.Error.Message, tt.errContains) {
+					t.Errorf("Expected error containing '%s', got '%v'", tt.errContains, errResp.Error)
+				}
+			}
+		})
+	}
+}
+
+func TestHandleWikiListToolValidation(t *testing.T) {
+	tests := []struct {
+		name        string
+		args        string
+		wantErr     bool
+		errContains string
+	}{
+		{name: "Missing owner", args: `{"repo":"test"}`, wantErr: true, errContains: "owner"},
+		{name: "Missing repo", args: `{"owner":"terraphim"}`, wantErr: true, errContains: "repo"},
+		{name: "Empty owner", args: `{"owner":"","repo":"test"}`, wantErr: true, errContains: "owner"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			id := jsonRawMessagePtr(`1`)
+			resp := handleWikiListTool(json.RawMessage(tt.args), id)
+			if tt.wantErr {
+				errResp, ok := resp.(MCPErrorResponse)
+				if !ok {
+					t.Fatalf("Expected MCPErrorResponse, got %T", resp)
+				}
+				if errResp.Error == nil || !strings.Contains(errResp.Error.Message, tt.errContains) {
+					t.Errorf("Expected error containing '%s', got '%v'", tt.errContains, errResp.Error)
+				}
+			}
+		})
+	}
+}
+
+func TestHandleWikiGetToolValidation(t *testing.T) {
+	tests := []struct {
+		name        string
+		args        string
+		wantErr     bool
+		errContains string
+	}{
+		{name: "Missing owner", args: `{"repo":"test","name":"Home"}`, wantErr: true, errContains: "owner"},
+		{name: "Missing repo", args: `{"owner":"terraphim","name":"Home"}`, wantErr: true, errContains: "repo"},
+		{name: "Missing name", args: `{"owner":"terraphim","repo":"test"}`, wantErr: true, errContains: "name"},
+		{name: "Empty name", args: `{"owner":"terraphim","repo":"test","name":""}`, wantErr: true, errContains: "name"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			id := jsonRawMessagePtr(`1`)
+			resp := handleWikiGetTool(json.RawMessage(tt.args), id)
+			if tt.wantErr {
+				errResp, ok := resp.(MCPErrorResponse)
+				if !ok {
+					t.Fatalf("Expected MCPErrorResponse, got %T", resp)
+				}
+				if errResp.Error == nil || !strings.Contains(errResp.Error.Message, tt.errContains) {
+					t.Errorf("Expected error containing '%s', got '%v'", tt.errContains, errResp.Error)
+				}
+			}
+		})
+	}
+}
+
+func TestHandleWikiUpdateToolValidation(t *testing.T) {
+	tests := []struct {
+		name        string
+		args        string
+		wantErr     bool
+		errContains string
+	}{
+		{name: "Missing owner", args: `{"repo":"test","name":"Home","content":"# Updated"}`, wantErr: true, errContains: "owner"},
+		{name: "Missing repo", args: `{"owner":"terraphim","name":"Home","content":"# Updated"}`, wantErr: true, errContains: "repo"},
+		{name: "Missing name", args: `{"owner":"terraphim","repo":"test","content":"# Updated"}`, wantErr: true, errContains: "name"},
+		{name: "Missing content", args: `{"owner":"terraphim","repo":"test","name":"Home"}`, wantErr: true, errContains: "content"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			id := jsonRawMessagePtr(`1`)
+			resp := handleWikiUpdateTool(json.RawMessage(tt.args), id)
+			if tt.wantErr {
+				errResp, ok := resp.(MCPErrorResponse)
+				if !ok {
+					t.Fatalf("Expected MCPErrorResponse, got %T", resp)
+				}
+				if errResp.Error == nil || !strings.Contains(errResp.Error.Message, tt.errContains) {
+					t.Errorf("Expected error containing '%s', got '%v'", tt.errContains, errResp.Error)
+				}
+			}
+		})
+	}
+}
+
+func TestHandleWikiDeleteToolValidation(t *testing.T) {
+	tests := []struct {
+		name        string
+		args        string
+		wantErr     bool
+		errContains string
+	}{
+		{name: "Missing owner", args: `{"repo":"test","name":"Home"}`, wantErr: true, errContains: "owner"},
+		{name: "Missing repo", args: `{"owner":"terraphim","name":"Home"}`, wantErr: true, errContains: "repo"},
+		{name: "Missing name", args: `{"owner":"terraphim","repo":"test"}`, wantErr: true, errContains: "name"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			id := jsonRawMessagePtr(`1`)
+			resp := handleWikiDeleteTool(json.RawMessage(tt.args), id)
+			if tt.wantErr {
+				errResp, ok := resp.(MCPErrorResponse)
+				if !ok {
+					t.Fatalf("Expected MCPErrorResponse, got %T", resp)
+				}
+				if errResp.Error == nil || !strings.Contains(errResp.Error.Message, tt.errContains) {
+					t.Errorf("Expected error containing '%s', got '%v'", tt.errContains, errResp.Error)
+				}
+			}
+		})
+	}
 }
